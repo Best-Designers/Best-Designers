@@ -1,0 +1,13 @@
+{
+  "name": "hormuz-intel-dashboard",
+  "version": "21.0.0",
+  "description": "HORMUZ INTEL — Strait of Hormuz Intelligence Dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

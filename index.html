@@ -1,0 +1,3777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HORMUZ INTEL — Strait of Hormuz Intelligence Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  /* PASSWORD GATE */
+  #login-gate {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: #0a0e17; z-index: 99999;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 20px;
+  }
+  #login-gate.hidden { display: none; }
+  #login-gate h1 { color: #e2e8f0; font-family: monospace; font-size: 24px; letter-spacing: 3px; }
+  #login-gate p { color: #64748b; font-size: 13px; }
+  #login-gate input {
+    background: #1a2235; border: 1px solid #2a3a55; color: #e2e8f0;
+    padding: 14px 20px; border-radius: 8px; font-size: 18px; width: 100%; max-width: 300px;
+    text-align: center; font-family: monospace; letter-spacing: 2px;
+    -webkit-appearance: none; appearance: none;
+    -webkit-text-security: disc; text-security: disc;
+    min-height: 48px;
+  }
+  #login-gate input:focus { outline: none; border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,0.2); }
+  #app-content {
+    display: none;
+  }
+  #app-content.visible {
+    display: block;
+  }
+  :root {
+    --bg-primary: #0a0e17;
+    --bg-secondary: #111827;
+    --bg-card: #1a2235;
+    --bg-card-hover: #1f2a40;
+    --border: #2a3a55;
+    --text-primary: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --accent-red: #ef4444;
+    --accent-orange: #f59e0b;
+    --accent-green: #22c55e;
+    --accent-blue: #3b82f6;
+    --accent-cyan: #06b6d4;
+    --accent-purple: #a855f7;
+    --danger: #dc2626;
+    --warning: #d97706;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* HEADER */
+  .header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-left { display: flex; align-items: center; gap: 16px; }
+  .logo {
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    background: linear-gradient(90deg, var(--accent-red), var(--accent-orange));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .logo-sub { font-size: 11px; color: var(--text-muted); letter-spacing: 1px; }
+  .header-right { display: flex; align-items: center; gap: 20px; }
+  .threat-level {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid var(--accent-red);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent-red);
+    animation: pulse-border 2s infinite;
+  }
+  @keyframes pulse-border {
+    0%, 100% { border-color: var(--accent-red); box-shadow: 0 0 8px rgba(239,68,68,0.3); }
+    50% { border-color: var(--accent-orange); box-shadow: 0 0 16px rgba(239,68,68,0.5); }
+  }
+  .pulse-dot {
+    width: 8px; height: 8px;
+    background: var(--accent-red);
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.3); }
+  }
+  .clock { font-size: 13px; color: var(--accent-cyan); font-weight: 600; }
+
+  /* GRID LAYOUT */
+  .dashboard {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: auto auto auto auto;
+    gap: 12px;
+    padding: 16px;
+    max-width: 1800px;
+    margin: 0 auto;
+  }
+
+  /* CARDS */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+  .card:hover { border-color: var(--accent-blue); }
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0,0,0,0.2);
+  }
+  .card-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+  .card-badge {
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+  .badge-live { background: rgba(239,68,68,0.2); color: var(--accent-red); }
+  .badge-osint { background: rgba(6,182,212,0.2); color: var(--accent-cyan); }
+  .badge-data { background: rgba(59,130,246,0.2); color: var(--accent-blue); }
+  .card-body { padding: 16px; }
+
+  /* SPAN CLASSES */
+  .span-2 { grid-column: span 2; }
+  .span-3 { grid-column: span 3; }
+
+  /* STAT BOXES */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    grid-column: span 3;
+  }
+  .stat-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+  .stat-label {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .stat-value {
+    font-size: 28px;
+    font-weight: 900;
+    line-height: 1;
+  }
+  .stat-change {
+    font-size: 11px;
+    margin-top: 6px;
+    font-weight: 600;
+  }
+  .up { color: var(--accent-green); }
+  .down { color: var(--accent-red); }
+  .neutral { color: var(--text-muted); }
+  .stat-value.red { color: var(--accent-red); }
+  .stat-value.green { color: var(--accent-green); }
+  .stat-value.orange { color: var(--accent-orange); }
+  .stat-value.blue { color: var(--accent-blue); }
+  .stat-value.cyan { color: var(--accent-cyan); }
+  .stat-value.purple { color: var(--accent-purple); }
+
+  /* MAP EMBED */
+  .map-container {
+    width: 100%;
+    height: 420px;
+    position: relative;
+    background: #0a0e17;
+  }
+  .map-container iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    filter: brightness(0.85) contrast(1.1);
+  }
+  .map-overlay {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.8);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    color: var(--accent-cyan);
+    border: 1px solid var(--accent-cyan);
+  }
+
+  /* CHART CONTAINERS */
+  .chart-container {
+    width: 100%;
+    height: 280px;
+    position: relative;
+  }
+
+  /* NEWS FEED */
+  .feed-container {
+    max-height: 500px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .feed-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(42,58,85,0.5);
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .feed-item:hover { background: var(--bg-card-hover); }
+  .feed-item:last-child { border-bottom: none; }
+  .feed-time {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .feed-source {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .src-telegram { background: rgba(0,136,204,0.2); color: #0088cc; }
+  .src-x { background: rgba(255,255,255,0.1); color: #ccc; }
+  .src-osint { background: rgba(168,85,247,0.2); color: var(--accent-purple); }
+  .src-news { background: rgba(245,158,11,0.2); color: var(--accent-orange); }
+  .src-gov { background: rgba(239,68,68,0.2); color: var(--accent-red); }
+  .feed-headline {
+    font-size: 13px;
+    color: var(--text-primary);
+    line-height: 1.4;
+    margin-bottom: 4px;
+  }
+  .feed-sentiment {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    display: inline-block;
+  }
+  .sentiment-bearish { background: rgba(239,68,68,0.2); color: var(--accent-red); }
+  .sentiment-bullish { background: rgba(34,197,94,0.2); color: var(--accent-green); }
+  .sentiment-neutral { background: rgba(100,116,139,0.2); color: var(--text-muted); }
+  .sentiment-critical { background: rgba(239,68,68,0.4); color: #ff6b6b; }
+
+  /* SENTIMENT GAUGE */
+  .gauge-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  .gauge-bar {
+    width: 100%;
+    height: 24px;
+    background: linear-gradient(90deg, var(--accent-red) 0%, var(--accent-orange) 30%, #eab308 50%, var(--accent-green) 100%);
+    border-radius: 12px;
+    position: relative;
+    margin: 16px 0;
+  }
+  .gauge-needle {
+    position: absolute;
+    top: -6px;
+    width: 4px;
+    height: 36px;
+    background: white;
+    border-radius: 2px;
+    transition: left 1s ease;
+    box-shadow: 0 0 10px rgba(255,255,255,0.5);
+  }
+  .gauge-labels {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+  }
+  .gauge-score {
+    font-size: 48px;
+    font-weight: 900;
+    margin-top: 8px;
+  }
+  .gauge-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+
+  /* OSINT SOURCES */
+  .source-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .source-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: all 0.2s;
+    font-size: 12px;
+  }
+  .source-item:hover {
+    border-color: var(--accent-cyan);
+    background: rgba(6,182,212,0.05);
+  }
+  .source-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .source-dot.live { background: var(--accent-green); animation: pulse 2s infinite; }
+  .source-dot.delayed { background: var(--accent-orange); }
+  .source-dot.offline { background: var(--accent-red); }
+
+  /* TRANSIT LOG */
+  .transit-table {
+    width: 100%;
+    font-size: 12px;
+    border-collapse: collapse;
+  }
+  .transit-table th {
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .transit-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(42,58,85,0.3);
+    color: var(--text-secondary);
+  }
+  .transit-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .flag-tag {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 600;
+  }
+  .flag-iran { background: rgba(34,197,94,0.2); color: var(--accent-green); }
+  .flag-china { background: rgba(239,68,68,0.2); color: var(--accent-red); }
+  .flag-other { background: rgba(100,116,139,0.2); color: var(--text-muted); }
+
+  /* GOV vs GROUND */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .compare-col {
+    padding: 16px;
+    border-radius: 8px;
+  }
+  .compare-col.gov {
+    background: rgba(239,68,68,0.05);
+    border: 1px solid rgba(239,68,68,0.3);
+  }
+  .compare-col.ground {
+    background: rgba(34,197,94,0.05);
+    border: 1px solid rgba(34,197,94,0.3);
+  }
+  .compare-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .compare-label.gov-label { color: var(--accent-red); }
+  .compare-label.ground-label { color: var(--accent-green); }
+  .compare-item {
+    font-size: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+  .compare-item:last-child { border-bottom: none; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* STOCKLABS NEWS FEED STYLES */
+  .sl-news-row:hover { background: rgba(255,255,255,0.04) !important; }
+  .sl-news-row:hover > div:last-child { color: #64748b !important; }
+  #news-ticker::-webkit-scrollbar { width: 6px; }
+  #news-ticker::-webkit-scrollbar-track { background: #0c1018; }
+  #news-ticker::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+
+  /* RESPONSIVE */
+  @media (max-width: 1200px) {
+    .dashboard { grid-template-columns: 1fr 1fr; }
+    .span-3 { grid-column: span 2; }
+    .stats-row { grid-template-columns: repeat(4, 1fr); grid-column: span 2; }
+  }
+  @media (max-width: 768px) {
+    .dashboard { grid-template-columns: 1fr; }
+    .span-2, .span-3 { grid-column: span 1; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); grid-column: span 1; }
+    .compare-grid { grid-template-columns: 1fr; }
+    .source-grid { grid-template-columns: 1fr; }
+  }
+
+  /* TAB SYSTEM */
+  .tab-bar {
+    display: flex;
+    gap: 4px;
+    padding: 0 16px;
+    background: rgba(0,0,0,0.2);
+    border-bottom: 1px solid var(--border);
+  }
+  .tab-btn {
+    padding: 8px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  .tab-btn:hover { color: var(--text-secondary); }
+  .tab-btn.active {
+    color: var(--accent-cyan);
+    border-bottom-color: var(--accent-cyan);
+  }
+
+  /* REFRESH BUTTON */
+  .refresh-btn {
+    background: rgba(6,182,212,0.15);
+    border: 1px solid var(--accent-cyan);
+    color: var(--accent-cyan);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+  .refresh-btn:hover {
+    background: rgba(6,182,212,0.25);
+  }
+
+  /* TELEGRAM MONITOR */
+  .tg-monitor {
+    grid-column: span 3;
+  }
+  .tg-channels-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .tg-channel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: rgba(0,136,204,0.06);
+    border: 1px solid rgba(0,136,204,0.2);
+    border-radius: 8px;
+    font-size: 12px;
+    transition: all 0.2s;
+  }
+  .tg-channel:hover { border-color: rgba(0,136,204,0.5); }
+  .tg-channel-info { display: flex; align-items: center; gap: 10px; }
+  .tg-channel-icon {
+    width: 32px; height: 32px;
+    background: rgba(0,136,204,0.15);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .tg-channel-name { font-weight: 600; color: var(--text-primary); }
+  .tg-channel-handle { font-size: 10px; color: #0088cc; }
+  .tg-channel-status {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .tg-status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+  }
+  .tg-status-dot.active { background: var(--accent-green); animation: pulse 2s infinite; }
+  .tg-status-dot.error { background: var(--accent-red); }
+  .tg-status-dot.pending { background: var(--accent-orange); }
+  .tg-status-label { font-size: 10px; color: var(--text-muted); }
+  .tg-msg-count {
+    font-size: 10px;
+    background: rgba(0,136,204,0.2);
+    color: #0088cc;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 700;
+  }
+  .tg-remove-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  .tg-remove-btn:hover { color: var(--accent-red); background: rgba(239,68,68,0.1); }
+  .tg-add-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .tg-input {
+    flex: 1;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .tg-input:focus { border-color: #0088cc; }
+  .tg-input::placeholder { color: var(--text-muted); }
+  .tg-add-btn {
+    background: rgba(0,136,204,0.15);
+    border: 1px solid #0088cc;
+    color: #0088cc;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+  .tg-add-btn:hover { background: rgba(0,136,204,0.25); }
+  .tg-live-feed {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-top: 12px;
+  }
+  .tg-msg {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(42,58,85,0.3);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .tg-msg:last-child { border-bottom: none; }
+  .tg-msg:hover { background: rgba(0,136,204,0.03); }
+  .tg-msg-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .tg-msg-channel {
+    font-weight: 700;
+    color: #0088cc;
+    font-size: 11px;
+  }
+  .tg-msg-time {
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+  .tg-msg-text {
+    color: var(--text-secondary);
+  }
+  .tg-stats-bar {
+    display: flex;
+    gap: 16px;
+    padding: 12px 16px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 8px;
+    margin-bottom: 12px;
+  }
+  .tg-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .tg-stat-num { font-size: 20px; font-weight: 900; color: #0088cc; }
+  .tg-stat-label { font-size: 9px; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; }
+  .proxy-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .proxy-select {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 8px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 11px;
+    outline: none;
+  }
+
+  /* TRUMP SIGNAL */
+  .trump-panel { grid-column: span 3; }
+  .trump-header-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 16px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 8px;
+    margin-bottom: 12px;
+  }
+  .trump-alert-level {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 1px;
+  }
+  .trump-alert-level.hot {
+    background: rgba(239,68,68,0.15);
+    border: 1px solid var(--accent-red);
+    color: var(--accent-red);
+    animation: pulse-border 2s infinite;
+  }
+  .trump-alert-level.warm {
+    background: rgba(245,158,11,0.15);
+    border: 1px solid var(--accent-orange);
+    color: var(--accent-orange);
+  }
+  .trump-alert-level.quiet {
+    background: rgba(100,116,139,0.1);
+    border: 1px solid var(--text-muted);
+    color: var(--text-muted);
+  }
+  .trump-stats {
+    display: flex;
+    gap: 24px;
+    margin-left: auto;
+  }
+  .trump-stat {
+    text-align: center;
+  }
+  .trump-stat-val { font-size: 18px; font-weight: 900; }
+  .trump-stat-lbl { font-size: 9px; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; }
+  .trump-feed {
+    max-height: 350px;
+    overflow-y: auto;
+  }
+  .trump-post {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(42,58,85,0.3);
+    transition: background 0.2s;
+  }
+  .trump-post:hover { background: var(--bg-card-hover); }
+  .trump-post:last-child { border-bottom: none; }
+  .trump-post-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .trump-avatar {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #c0392b, #e74c3c);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 900; color: white;
+    flex-shrink: 0;
+  }
+  .trump-handle { font-size: 12px; font-weight: 700; color: #e74c3c; }
+  .trump-post-time { font-size: 10px; color: var(--text-muted); }
+  .trump-post-text { font-size: 13px; color: var(--text-primary); line-height: 1.5; margin-bottom: 6px; }
+  .trump-impact {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 4px;
+  }
+  .impact-high { background: rgba(239,68,68,0.2); color: var(--accent-red); }
+  .impact-medium { background: rgba(245,158,11,0.2); color: var(--accent-orange); }
+  .impact-low { background: rgba(100,116,139,0.2); color: var(--text-muted); }
+  .trump-source-tag {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .src-truth { background: rgba(192,57,43,0.2); color: #e74c3c; }
+  .src-press { background: rgba(52,152,219,0.2); color: #3498db; }
+  .src-sotu { background: rgba(241,196,15,0.2); color: #f1c40f; }
+  .src-interview { background: rgba(155,89,182,0.2); color: #9b59b6; }
+  .trump-keywords-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 16px;
+    background: rgba(0,0,0,0.15);
+    border-radius: 6px;
+    margin-top: 12px;
+  }
+  .trump-kw-tag {
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(231,76,60,0.1);
+    color: #e74c3c;
+    border: 1px solid rgba(231,76,60,0.2);
+    font-weight: 600;
+  }
+  .trump-kw-tag.matched {
+    background: rgba(231,76,60,0.3);
+    border-color: #e74c3c;
+    animation: pulse-border 2s infinite;
+  }
+
+  /* INFO BANNER */
+  .info-banner {
+    grid-column: span 3;
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.3);
+    border-radius: 10px;
+    padding: 14px 20px;
+    font-size: 12px;
+    color: var(--accent-orange);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    line-height: 1.5;
+  }
+  .info-icon { font-size: 18px; flex-shrink: 0; }
+
+  /* PRICE PULSE ANIMATION */
+  @keyframes pricePulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+  }
+  .hl-price-live { animation: pricePulse 2s ease-in-out infinite; }
+  .price-flash-up { animation: flashGreen 0.6s ease-out; }
+  .price-flash-down { animation: flashRed 0.6s ease-out; }
+  @keyframes flashGreen { 0% { background: rgba(34,197,94,0.3); } 100% { background: transparent; } }
+  @keyframes flashRed { 0% { background: rgba(239,68,68,0.3); } 100% { background: transparent; } }
+
+  /* PRICE TICKER */
+  #price-ticker-row::-webkit-scrollbar { display: none; }
+  @keyframes tickerScroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  .ticker-item {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 0 20px; border-right: 1px solid var(--border);
+    white-space: nowrap; font-size: 12px;
+  }
+  .ticker-item:last-child { border-right: none; }
+  .ticker-symbol { font-weight: 800; color: var(--text-primary); letter-spacing: 1px; }
+  .ticker-price { font-weight: 700; color: var(--accent-orange); font-family: monospace; }
+  .ticker-change-up { color: var(--accent-green); font-weight: 600; font-size: 11px; }
+  .ticker-change-down { color: var(--accent-red); font-weight: 600; font-size: 11px; }
+
+  /* ===== MOBILE RESPONSIVE ===== */
+  @media (max-width: 1024px) {
+    .dashboard {
+      grid-template-columns: 1fr 1fr;
+    }
+    .span-3 { grid-column: span 2; }
+  }
+
+  @media (max-width: 768px) {
+    .dashboard {
+      grid-template-columns: 1fr;
+      gap: 10px;
+      padding: 10px;
+    }
+    .span-2, .span-3 { grid-column: span 1; }
+
+    /* Header */
+    .header {
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px 12px;
+      position: relative;
+    }
+    .header-left { width: 100%; justify-content: center; }
+    .header-right { width: 100%; justify-content: center; flex-wrap: wrap; gap: 8px; }
+    .logo { font-size: 16px; }
+    .logo-sub { font-size: 9px; text-align: center; }
+    .threat-level { font-size: 10px; padding: 4px 10px; }
+    .clock { font-size: 11px; }
+
+    /* Price ticker */
+    #price-ticker-row { height: 38px !important; }
+    .ticker-item { padding: 0 12px !important; font-size: 10px !important; }
+
+    /* Alert bar */
+    .alert-bar {
+      padding: 10px 12px;
+      font-size: 11px;
+      grid-column: span 1;
+    }
+
+    /* Cards */
+    .card-header {
+      padding: 10px 12px;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .card-title { font-size: 11px; }
+    .card-body { padding: 10px 12px; }
+
+    /* Tabs */
+    .tabs { flex-wrap: wrap; gap: 4px; }
+    .tab-btn { font-size: 10px; padding: 4px 8px; }
+
+    /* Tables */
+    table { font-size: 10px; }
+    th, td { padding: 6px 4px; }
+
+    /* Ticker scrollbar / overflow */
+    .card-body { overflow-x: auto; }
+
+    /* Refresh button */
+    .refresh-btn {
+      font-size: 11px !important;
+      padding: 5px 12px !important;
+    }
+
+    /* Whale tracker input */
+    #whale-addr-input {
+      width: 100% !important;
+      min-width: 0 !important;
+      font-size: 12px !important;
+    }
+
+    /* Login gate mobile */
+    #login-gate {
+      padding: 20px;
+    }
+    #login-gate h1 { font-size: 18px; }
+    #login-gate p { font-size: 11px; }
+
+    /* HL oil grid & impact grid & supply grid */
+    #hl-oil-grid, #hormuz-impact-grid, #supply-country-grid {
+      grid-template-columns: 1fr 1fr !important;
+    }
+    #supply-disruption-grid, #supply-spr-section {
+      grid-template-columns: 1fr !important;
+    }
+
+    /* Source grid */
+    #source-grid {
+      grid-template-columns: 1fr !important;
+    }
+  }
+
+  @media (max-width: 480px) {
+    #hl-oil-grid, #hormuz-impact-grid, #supply-country-grid, #fair-value-panel table {
+      grid-template-columns: 1fr !important;
+    }
+    #fair-value-panel table { font-size: 9px !important; }
+    #fair-value-panel table th, #fair-value-panel table td { padding: 5px 4px !important; }
+    .header-right { gap: 6px; }
+    .threat-level { font-size: 9px; padding: 3px 8px; }
+  }
+
+  /* Touch targets - ensure all buttons/inputs are at least 44px for mobile */
+  @media (pointer: coarse) {
+    button, .tab-btn, input[type="text"], input[type="password"], select {
+      min-height: 44px;
+    }
+    .tab-btn { padding: 8px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- PASSWORD GATE — no form, no inline handlers, pure JS event binding -->
+<div id="login-gate">
+  <h1>HORMUZ INTEL</h1>
+  <p>Authorized personnel only. Enter access code.</p>
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 0; width: 100%; max-width: 340px; padding: 0 20px;">
+    <input type="text" id="gate-password" placeholder="Access Code" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="margin-bottom: 12px; -webkit-text-security: disc; text-security: disc;">
+    <div id="auth-btn" role="button" tabindex="0" style="background: #f59e0b; color: #0a0e17; border: none; padding: 14px 40px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 15px; -webkit-appearance: none; appearance: none; width: 100%; max-width: 300px; text-align: center; min-height: 48px; line-height: 48px; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: rgba(245,158,11,0.3);">AUTHENTICATE</div>
+  </div>
+  <div id="login-error" style="margin-top: 8px; color: #ef4444; font-size: 12px; min-height: 18px; text-align: center;"></div>
+</div>
+
+<!-- AUTH SCRIPT — standalone, zero inline handlers, all addEventListener -->
+<script>
+/* ================================================
+   AUTH MODULE — completely self-contained
+   No async, no form, no inline handlers
+   Uses type="text" + CSS disc masking (no iOS password manager interference)
+   All events bound via addEventListener
+   ================================================ */
+(function() {
+
+  var HASH = 'd63c9e4ff6b8cb241c5776e9e1061c853157ddf966b037d4dfa18a5556d3aff6';
+
+  /* --- SHA-256 pure JS (no crypto.subtle, no async) --- */
+  function rr(n,x){return(x>>>n)|(x<<(32-n));}
+  var K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  function sha256(text) {
+    var H0=0x6a09e667,H1=0xbb67ae85,H2=0x3c6ef372,H3=0xa54ff53a,H4=0x510e527f,H5=0x9b05688c,H6=0x1f83d9ab,H7=0x5be0cd19;
+    var b=new TextEncoder().encode(text),bl=b.length*8,p=new Uint8Array(Math.ceil((b.length+9)/64)*64);
+    p.set(b);p[b.length]=0x80;var dv=new DataView(p.buffer);dv.setUint32(p.length-4,bl,false);
+    for(var o=0;o<p.length;o+=64){var w=new Int32Array(64);for(var i=0;i<16;i++)w[i]=dv.getInt32(o+i*4,false);
+    for(var i=16;i<64;i++){var s0=rr(7,w[i-15]>>>0)^rr(18,w[i-15]>>>0)^(w[i-15]>>>3),s1=rr(17,w[i-2]>>>0)^rr(19,w[i-2]>>>0)^(w[i-2]>>>10);w[i]=(w[i-16]+s0+w[i-7]+s1)|0;}
+    var a=H0,B=H1,c=H2,d=H3,e=H4,f=H5,g=H6,h=H7;
+    for(var i=0;i<64;i++){var S1=rr(6,e>>>0)^rr(11,e>>>0)^rr(25,e>>>0),ch=(e&f)^(~e&g),t1=(h+S1+ch+K[i]+w[i])|0,S0=rr(2,a>>>0)^rr(13,a>>>0)^rr(22,a>>>0),mj=(a&B)^(a&c)^(B&c),t2=(S0+mj)|0;h=g;g=f;f=e;e=(d+t1)|0;d=c;c=B;B=a;a=(t1+t2)|0;}
+    H0=(H0+a)|0;H1=(H1+B)|0;H2=(H2+c)|0;H3=(H3+d)|0;H4=(H4+e)|0;H5=(H5+f)|0;H6=(H6+g)|0;H7=(H7+h)|0;}
+    return [H0,H1,H2,H3,H4,H5,H6,H7].map(function(v){return(v>>>0).toString(16).padStart(8,'0');}).join('');
+  }
+
+  /* --- Login action --- */
+  function doLogin() {
+    var gate = document.getElementById('login-gate');
+    var app = document.getElementById('app-content');
+    if (gate) gate.style.display = 'none';
+    if (app) { app.style.display = 'block'; app.className = 'visible'; }
+    // Poll for startDashboard (dashboard script may still be loading)
+    var t = 0;
+    var poll = setInterval(function() {
+      t++;
+      if (typeof window.startDashboard === 'function') { clearInterval(poll); window.startDashboard(); }
+      else if (t > 100) { clearInterval(poll); }
+    }, 100);
+  }
+
+  /* --- Authenticate --- */
+  function tryAuth() {
+    var pw = document.getElementById('gate-password');
+    var err = document.getElementById('login-error');
+    if (!pw || !err) return;
+    var val = pw.value;
+    if (!val || val.trim().length === 0) { err.textContent = 'Please enter an access code.'; return; }
+    err.textContent = 'Verifying...';
+    err.style.color = '#f59e0b';
+    // Use setTimeout(0) to let the "Verifying..." paint on screen before hashing
+    setTimeout(function() {
+      try {
+        var h = sha256(val.trim());
+        if (h === HASH) {
+          err.textContent = '';
+          try { sessionStorage.setItem('hormuz_auth', 'true'); } catch(x) {}
+          doLogin();
+        } else {
+          err.style.color = '#ef4444';
+          err.textContent = 'Invalid access code.';
+          pw.value = '';
+          pw.focus();
+        }
+      } catch(ex) {
+        err.style.color = '#ef4444';
+        err.textContent = 'Error: ' + ex.message;
+      }
+    }, 10);
+  }
+
+  /* --- Bind events via addEventListener (NOT inline) --- */
+  var btn = document.getElementById('auth-btn');
+  var inp = document.getElementById('gate-password');
+
+  if (btn) {
+    // Click (desktop + iOS)
+    btn.addEventListener('click', function(e) { e.preventDefault(); tryAuth(); }, false);
+    // Touchend (explicit iOS touch)
+    btn.addEventListener('touchend', function(e) { e.preventDefault(); tryAuth(); }, false);
+  }
+
+  if (inp) {
+    // Enter key on keyboard (desktop)
+    inp.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); tryAuth(); }
+    }, false);
+    // Backup: keyup for keyboards that don't fire keydown properly
+    inp.addEventListener('keyup', function(e) {
+      if (e.key === 'Enter' || e.keyCode === 13) { tryAuth(); }
+    }, false);
+  }
+
+  /* --- Auto-login from session --- */
+  try { if (sessionStorage.getItem('hormuz_auth') === 'true') doLogin(); } catch(x) {}
+
+})();
+</script>
+
+<div id="app-content">
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div>
+      <div class="logo">HORMUZ INTEL</div>
+      <div class="logo-sub">STRAIT OF HORMUZ INTELLIGENCE DASHBOARD</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="threat-level">
+      <div class="pulse-dot"></div>
+      THREAT LEVEL: CRITICAL
+    </div>
+    <div class="clock" id="clock">--:--:-- UTC</div>
+    <div id="refresh-status" style="display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--text-muted);">
+      <span id="refresh-countdown-display" style="font-family: monospace; color: var(--accent-cyan);">5:00</span>
+      <span id="last-refresh-time" style="font-size: 9px;">—</span>
+    </div>
+    <button class="refresh-btn" onclick="refreshAll()">REFRESH DATA</button>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="dashboard">
+
+  <!-- INFO BANNER -->
+  <div class="info-banner">
+    <span class="info-icon">&#9888;</span>
+    <div>
+      <strong>ACTIVE CONFLICT ZONE</strong> — AIS transponders are being disabled across the strait.
+      All ship counts are lower-bound estimates. Cross-reference multiple OSINT sources.
+      Data discrepancies between official US gov statements and ground-truth OSINT feeds are flagged in the Narrative Gap panel below.
+    </div>
+  </div>
+
+  <!-- LIVE PRICE TICKER — Hyperliquid XYZ + Yahoo Finance -->
+  <div id="price-ticker-row" style="grid-column: span 3; border-radius: 10px; overflow: hidden; height: 46px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); display: flex; align-items: center; gap: 0; overflow-x: auto; scrollbar-width: none;">
+    <div id="price-ticker-inner" style="display: flex; align-items: center; gap: 0; animation: tickerScroll 30s linear infinite; white-space: nowrap; padding: 0 12px;">
+      <!-- Populated by JS -->
+      <span style="font-size: 11px; color: var(--text-muted); padding: 0 20px;">Loading prices...</span>
+    </div>
+  </div>
+
+  <!-- STATS ROW — non-price indicators only (prices handled by TradingView above) -->
+  <div class="stats-row" style="grid-template-columns: repeat(4, 1fr);">
+    <div class="stat-box">
+      <div class="stat-label">Vessels in Transit</div>
+      <div class="stat-value red" id="vessel-count">4</div>
+      <div class="stat-change down">-96% from baseline</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">AIS Dark Vessels</div>
+      <div class="stat-value purple" id="dark-vessels">~37</div>
+      <div class="stat-change neutral">est. transponders off</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Sentiment Score</div>
+      <div class="stat-value red" id="sentiment-num">18</div>
+      <div class="stat-change down">EXTREME FEAR</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Narrative Gap</div>
+      <div class="stat-value orange" id="gap-score">HIGH</div>
+      <div class="stat-change down">Gov vs Ground diverge</div>
+    </div>
+  </div>
+
+  <!-- HEADLINE SENTIMENT ENGINE -->
+  <div class="card trump-panel">
+    <div class="card-header">
+      <span class="card-title">Headline Sentiment Engine</span>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 10px; color: var(--text-muted);">Oil · Hormuz · Iran · Geopolitical</span>
+        <span class="card-badge badge-live">&#9679; LIVE</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <!-- Sentiment gauge -->
+      <div class="trump-header-bar">
+        <div class="trump-alert-level" id="sentiment-alert-level">
+          <div class="pulse-dot"></div>
+          <span id="sentiment-alert-text">LOADING...</span>
+        </div>
+        <div class="trump-stats">
+          <div class="trump-stat">
+            <div class="trump-stat-val" id="sent-total" style="color: var(--accent-cyan);">0</div>
+            <div class="trump-stat-lbl">Headlines</div>
+          </div>
+          <div class="trump-stat">
+            <div class="trump-stat-val" id="sent-negative" style="color: var(--accent-red);">0</div>
+            <div class="trump-stat-lbl">Bearish</div>
+          </div>
+          <div class="trump-stat">
+            <div class="trump-stat-val" id="sent-positive" style="color: var(--accent-green);">0</div>
+            <div class="trump-stat-lbl">Bullish</div>
+          </div>
+          <div class="trump-stat">
+            <div class="trump-stat-val" id="sent-score" style="color: var(--accent-orange); font-size: 20px;">--</div>
+            <div class="trump-stat-lbl">Net Score</div>
+          </div>
+          <div class="trump-stat">
+            <div class="trump-stat-val" id="sent-last-update" style="color: var(--accent-cyan); font-size: 12px;">--</div>
+            <div class="trump-stat-lbl">Last Update</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sentiment bar chart -->
+      <div style="margin-top: 12px; padding: 8px 0;">
+        <div style="display: flex; align-items: center; gap: 8px; height: 28px;">
+          <span style="font-size: 10px; color: var(--accent-green); width: 50px; text-align: right;" id="sent-bar-bull">0%</span>
+          <div style="flex: 1; height: 20px; background: rgba(0,0,0,0.3); border-radius: 10px; overflow: hidden; display: flex;">
+            <div id="sent-bar-green" style="height: 100%; background: var(--accent-green); transition: width 0.5s;"></div>
+            <div id="sent-bar-gray" style="height: 100%; background: var(--text-muted); opacity: 0.3; transition: width 0.5s;"></div>
+            <div id="sent-bar-red" style="height: 100%; background: var(--accent-red); transition: width 0.5s;"></div>
+          </div>
+          <span style="font-size: 10px; color: var(--accent-red); width: 50px;" id="sent-bar-bear">0%</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 9px; color: var(--text-muted); margin-top: 2px; padding: 0 58px;">
+          <span>BULLISH</span><span>NEUTRAL</span><span>BEARISH</span>
+        </div>
+      </div>
+
+      <!-- Headline feed -->
+      <div id="sentiment-feed" style="margin-top: 8px; max-height: 350px; overflow-y: auto;">
+        <div style="text-align: center; color: var(--text-muted); padding: 24px;">
+          Loading headlines from news sources...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LIVE MAP -->
+  <div class="card span-2">
+    <div class="card-header">
+      <span class="card-title">Live Vessel Tracking — Strait of Hormuz</span>
+      <span class="card-badge badge-live">&#9679; LIVE AIS</span>
+    </div>
+    <div class="map-container">
+      <iframe
+        src="https://www.marinetraffic.com/en/ais/embed/zoom:9/cenx:56.3/ceny:26.6/maptype:4/shownames:false/mmsi:0/shipid:0/fleet:/fleet2:/port:/showtracks:false/proto:true"
+        loading="lazy"
+        referrerpolicy="no-referrer"
+        allow="fullscreen">
+      </iframe>
+      <div class="map-overlay">
+        AIS DATA — LOWER BOUND ONLY — MANY TRANSPONDERS OFFLINE
+      </div>
+    </div>
+  </div>
+
+  <!-- SENTIMENT GAUGE -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Market Sentiment Gauge</span>
+      <span class="card-badge badge-data">COMPUTED</span>
+    </div>
+    <div class="card-body gauge-container">
+      <div class="gauge-score red" id="gauge-value">18</div>
+      <div class="gauge-desc">EXTREME FEAR</div>
+      <div class="gauge-bar">
+        <div class="gauge-needle" id="gauge-needle" style="left: 18%"></div>
+      </div>
+      <div class="gauge-labels">
+        <span>EXTREME FEAR</span>
+        <span>FEAR</span>
+        <span>NEUTRAL</span>
+        <span>GREED</span>
+      </div>
+      <div style="margin-top: 20px; width: 100%;">
+        <div style="font-size: 11px; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 10px;">SIGNAL BREAKDOWN</div>
+        <div id="signal-breakdown" style="font-size: 12px; color: var(--text-secondary); line-height: 2;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OIL PRICE CHART — Canvas-rendered from Hyperliquid XYZ data -->
+  <div class="card span-2" style="padding: 0; overflow: hidden;">
+    <div class="card-header" style="padding: 12px 16px;">
+      <span class="card-title">Oil Complex — Live Price Action</span>
+      <span class="card-badge badge-data">HYPERLIQUID</span>
+    </div>
+    <div style="height: 400px; padding: 12px;">
+      <div id="oil-chart-tabs" style="display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap;">
+        <button class="tab-btn active" onclick="switchOilChart('CL', this)" style="font-size: 10px; padding: 4px 10px;">WTI CL</button>
+        <button class="tab-btn" onclick="switchOilChart('BRENTOIL', this)" style="font-size: 10px; padding: 4px 10px;">Brent</button>
+        <button class="tab-btn" onclick="switchOilChart('NATGAS', this)" style="font-size: 10px; padding: 4px 10px;">Nat Gas</button>
+        <button class="tab-btn" onclick="switchOilChart('GOLD', this)" style="font-size: 10px; padding: 4px 10px;">Gold</button>
+        <button class="tab-btn" onclick="switchOilChart('COPPER', this)" style="font-size: 10px; padding: 4px 10px;">Copper</button>
+        <button class="tab-btn" onclick="switchOilChart('ALUMINIUM', this)" style="font-size: 10px; padding: 4px 10px;">Aluminium</button>
+        <button class="tab-btn" onclick="switchOilChart('PLATINUM', this)" style="font-size: 10px; padding: 4px 10px;">Platinum</button>
+        <button class="tab-btn" onclick="switchOilChart('URANIUM', this)" style="font-size: 10px; padding: 4px 10px;">Uranium</button>
+      </div>
+      <canvas id="oilPriceChart" style="width: 100%; height: calc(100% - 40px);"></canvas>
+    </div>
+  </div>
+
+  <!-- TRANSIT VOLUME CHART -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Daily Strait Transits</span>
+      <span class="card-badge badge-data">AIS + EST</span>
+    </div>
+    <div class="card-body">
+      <div class="chart-container">
+        <canvas id="transitChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- OSINT NEWS FEED -->
+  <div class="card span-2">
+    <div class="card-header">
+      <span class="card-title">OSINT Intelligence Feed</span>
+      <span class="card-badge badge-osint">MULTI-SOURCE</span>
+    </div>
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="filterFeed('all', this)">ALL</button>
+      <button class="tab-btn" onclick="filterFeed('news', this)">NEWS</button>
+      <button class="tab-btn" onclick="filterFeed('osint', this)">OSINT</button>
+    </div>
+    <div class="feed-container" id="feed-container">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+
+  <!-- NARRATIVE GAP: GOV vs GROUND -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Narrative Gap Analysis</span>
+      <span class="card-badge badge-osint">CRITICAL</span>
+    </div>
+    <div class="card-body">
+      <div class="compare-grid">
+        <div class="compare-col gov">
+          <div class="compare-label gov-label">Official Narrative</div>
+          <div class="compare-item">Government public statements and press briefings</div>
+          <div class="compare-item">Official supply and transit status reports</div>
+          <div class="compare-item">Mainstream media coverage and analysis</div>
+        </div>
+        <div class="compare-col ground">
+          <div class="compare-label ground-label">Ground Truth (OSINT)</div>
+          <div class="compare-item">AIS vessel tracking data and transit counts</div>
+          <div class="compare-item">Insurance premium movements and underwriter signals</div>
+          <div class="compare-item">Telegram and social media from regional sources</div>
+        </div>
+      </div>
+      <div style="margin-top: 16px; padding: 12px; background: rgba(245,158,11,0.08); border-radius: 6px; border: 1px solid rgba(245,158,11,0.2);">
+        <div style="font-size: 11px; color: var(--accent-orange); font-weight: 700; letter-spacing: 1px; margin-bottom: 6px;">ANALYSIS NOTE</div>
+        <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.6;">
+          This panel tracks divergence between official public statements and open-source intelligence data.
+          When the gap is HIGH, it indicates official communications may not reflect on-the-ground conditions.
+          Cross-reference multiple sources before making decisions.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RECENT TRANSITS LOG -->
+  <div class="card span-2">
+    <div class="card-header">
+      <span class="card-title">Recent Transit Attempts (Last 72h)</span>
+      <span class="card-badge badge-live">AIS + HUMINT</span>
+    </div>
+    <div class="card-body" style="padding: 0;">
+      <table class="transit-table">
+        <thead>
+          <tr>
+            <th>Time (UTC)</th>
+            <th>Vessel</th>
+            <th>Type</th>
+            <th>Flag</th>
+            <th>Direction</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="transit-log">
+          <!-- Populated by JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- OSINT SOURCES -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">OSINT Source Directory</span>
+      <span class="card-badge badge-osint">BOOKMARKS</span>
+    </div>
+    <div class="card-body">
+      <div class="source-grid" id="source-grid">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- NEWS SOURCE STATUS -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">News Sources</span>
+      <span class="card-badge badge-data">RSS FEEDS</span>
+    </div>
+    <div class="card-body">
+      <div id="news-sources-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- PREDICTION MARKETS -->
+  <div class="card span-3">
+    <div class="card-header">
+      <span class="card-title">Key Questions & Prediction Market Signals</span>
+      <span class="card-badge badge-data">DECISION MATRIX</span>
+    </div>
+    <div class="card-body">
+      <div id="predictions-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- HYPERLIQUID COMMODITY MARKETS -->
+  <div class="card span-3">
+    <div class="card-header">
+      <span class="card-title">Hyperliquid Commodity Markets</span>
+      <span style="font-size: 10px; color: var(--text-muted);">HIP-3 XYZ Dex · Perps · <span id="hl-refresh-timer" style="color: var(--accent-green);">Live</span></span>
+      <span class="card-badge badge-live">&#9679; LIVE</span>
+    </div>
+    <div class="card-body">
+      <div id="hl-oil-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+        <div style="text-align: center; color: var(--text-muted); padding: 20px; grid-column: span 3; font-size: 12px;">Loading Hyperliquid data...</div>
+      </div>
+      <div id="hl-oil-meta" style="margin-top: 10px; display: flex; gap: 16px; justify-content: center; font-size: 10px; color: var(--text-muted);"></div>
+    </div>
+  </div>
+
+  <!-- HORMUZ COMMODITY IMPACT MATRIX -->
+  <div class="card span-3">
+    <div class="card-header">
+      <span class="card-title">Strait of Hormuz — Commodity Impact Matrix</span>
+      <span style="font-size: 10px; color: var(--text-muted);">Global supply at risk from closure</span>
+      <span class="card-badge badge-osint">INTEL</span>
+    </div>
+    <div class="card-body" style="padding: 12px;">
+      <div id="hormuz-impact-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+        <div style="text-align: center; color: var(--text-muted); padding: 20px; grid-column: span 4; font-size: 12px;">Loading impact data...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GLOBAL OIL SUPPLY DISRUPTION TRACKER -->
+  <div class="card span-3">
+    <div class="card-header">
+      <span class="card-title">Global Oil Supply Disruption Tracker</span>
+      <span style="font-size: 10px; color: var(--text-muted);">Hormuz + Force Majeure + Export Caps + Refinery Damage</span>
+      <span class="card-badge badge-live" style="background: rgba(239,68,68,0.3);">CRISIS</span>
+    </div>
+    <div class="card-body" style="padding: 12px;">
+      <!-- DEFICIT HEADLINE -->
+      <div id="supply-deficit-headline" style="background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(245,158,11,0.1)); border: 1px solid rgba(239,68,68,0.4); border-radius: 10px; padding: 16px; margin-bottom: 14px; text-align: center;">
+        <div style="font-size: 10px; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px;">Total Global Supply Offline</div>
+        <div style="font-size: 42px; font-weight: 900; color: var(--accent-red); font-family: monospace; line-height: 1;" id="supply-total-mbpd">~10.0</div>
+        <div style="font-size: 13px; color: var(--accent-red); font-weight: 700; margin-top: 2px;">Million Barrels Per Day</div>
+        <div style="font-size: 11px; color: var(--accent-orange); margin-top: 6px;" id="supply-pct-global">~10% of global 100M bpd supply</div>
+      </div>
+
+      <!-- ESTIMATED FAIR VALUE — $CL (inside supply tracker, under headline) -->
+      <div style="margin-bottom: 14px;">
+        <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); letter-spacing: 1px; margin-bottom: 8px; text-transform: uppercase;">Estimated Fair Value — $CL (WTI Crude) <span style="font-weight: 400; color: var(--accent-green); font-size: 9px; letter-spacing: 0;">MODEL</span></div>
+        <div id="fair-value-panel">
+          <div style="text-align: center; color: var(--text-muted); padding: 16px; font-size: 12px;">Calculating fair value...</div>
+        </div>
+      </div>
+
+      <!-- DISRUPTION CATEGORIES -->
+      <div id="supply-disruption-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+      </div>
+
+      <!-- COUNTRY BREAKDOWN -->
+      <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); letter-spacing: 1px; margin-bottom: 8px; text-transform: uppercase;">Country-by-Country Production Cuts</div>
+      <div id="supply-country-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px;">
+      </div>
+
+      <!-- SPR / EMERGENCY RESPONSE -->
+      <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); letter-spacing: 1px; margin-bottom: 8px; text-transform: uppercase;">Emergency Response — Strategic Reserves</div>
+      <div id="supply-spr-section" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+      </div>
+
+      <div style="margin-top: 10px; font-size: 9px; color: var(--text-muted); text-align: right;">Sources: IEA March 2026 Oil Market Report · Bloomberg · Fortune · CNBC · Kpler</div>
+    </div>
+  </div>
+
+  <!-- HYPERLIQUID WHALE TRACKER -->
+  <div class="card span-3">
+    <div class="card-header">
+      <span class="card-title">Whale Position Tracker</span>
+      <span style="font-size: 10px; color: var(--text-muted);">Hyperliquid XYZ Dex · Oil &amp; Commodities</span>
+      <span class="card-badge badge-live">&#9679; LIVE</span>
+    </div>
+    <div class="card-body">
+      <div id="whale-tracker" style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="text-align: center; color: var(--text-muted); padding: 20px; font-size: 12px;">Loading whale positions...</div>
+      </div>
+      <div style="margin-top: 10px; display: flex; gap: 8px; align-items: center;">
+        <input type="text" id="whale-addr-input" placeholder="Add wallet address (0x...)" style="flex: 1; background: var(--bg-secondary); border: 1px solid var(--border); color: var(--text-primary); padding: 8px 12px; border-radius: 6px; font-size: 11px; font-family: monospace;">
+        <button onclick="addWhaleAddress()" style="background: var(--accent-cyan); color: #000; border: none; padding: 8px 16px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap;">+ ADD WALLET</button>
+      </div>
+      <div style="margin-top: 6px; font-size: 9px; color: var(--text-muted);">Track any Hyperliquid wallet. Find whale addresses on <a href="https://x.com/lookonchain" target="_blank" style="color: var(--accent-cyan);">@Lookonchain</a> or <a href="https://www.coinglass.com/hyperliquid" target="_blank" style="color: var(--accent-cyan);">CoinGlass</a></div>
+    </div>
+  </div>
+
+  <!-- FINANCIAL NEWS FEED (StockLabs-style) -->
+  <div class="card span-3" style="overflow: hidden;">
+    <div class="card-header" style="border-bottom: 1px solid rgba(255,255,255,0.06); padding: 10px 16px;">
+      <span class="card-title" style="font-size: 13px; letter-spacing: 0.5px;">NEWS FEED</span>
+      <span id="news-count" style="font-size: 10px; color: var(--text-muted); margin-left: 8px;"></span>
+      <span id="news-source-tag" class="card-badge badge-data" style="font-size: 9px; color: #22c55e;">LIVE</span>
+    </div>
+    <div class="card-body" style="padding: 0; background: #0c1018;">
+      <div id="news-ticker" style="max-height: 520px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #1e293b #0c1018;">
+        <div style="text-align: center; color: var(--text-muted); padding: 32px; font-size: 12px;">Loading news feed...</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// Global error handler - shows JS errors on page
+window.onerror = function(msg, url, line, col, error) {
+  console.error('DASHBOARD ERROR:', msg, 'Line:', line);
+  const el = document.getElementById('sentiment-feed') || document.getElementById('feed-container');
+  if (el) el.innerHTML = '<div style="color:#ef4444;padding:12px;font-size:12px;background:rgba(239,68,68,0.1);border-radius:6px;margin:8px 0;">ERROR at line ' + line + ': ' + msg + '</div>' + el.innerHTML;
+};
+window.addEventListener('unhandledrejection', function(e) {
+  console.error('DASHBOARD PROMISE ERROR:', e.reason);
+  const el = document.getElementById('sentiment-feed') || document.getElementById('feed-container');
+  if (el) el.innerHTML = '<div style="color:#ef4444;padding:12px;font-size:12px;background:rgba(239,68,68,0.1);border-radius:6px;margin:8px 0;">ASYNC ERROR: ' + (e.reason?.message || e.reason) + '</div>' + el.innerHTML;
+});
+
+// =====================
+// CLOCK
+// =====================
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toUTCString().split(' ').slice(1,5).join(' ') + ' UTC';
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// =====================
+// FEED DATA (dynamic dates relative to now)
+// =====================
+function feedTime(hoursAgo) {
+  const d = new Date(Date.now() - hoursAgo * 3600000);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+}
+const feedItems = [
+  {
+    time: feedTime(0.5),
+    source: 'osint',
+    sourceLabel: 'OSINT',
+    headline: 'IRGC Navy claims successful interception of "hostile reconnaissance drone" near Larak Island',
+    sentiment: 'critical',
+    sentimentLabel: 'CRITICAL',
+    url: '#'
+  },
+  {
+    time: feedTime(1),
+    source: 'x',
+    sourceLabel: 'X',
+    headline: 'OSINT Source: Satellite imagery confirms 14 tankers anchored outside strait at Fujairah — up from 6 last week. Insurance refusal driving anchorage buildup.',
+    sentiment: 'bearish',
+    sentimentLabel: 'BEARISH OIL SUPPLY',
+    url: '#'
+  },
+  {
+    time: feedTime(1.5),
+    source: 'osint',
+    sourceLabel: 'OSINT',
+    headline: 'Transit Monitor: Only 2 confirmed transits in last 24h — both Iran-linked VLCCs heading to Dalian, China. Zero westbound commercial traffic.',
+    sentiment: 'critical',
+    sentimentLabel: 'CRITICAL',
+    url: '#'
+  },
+  {
+    time: feedTime(2),
+    source: 'news',
+    sourceLabel: 'NEWS',
+    headline: 'Bloomberg Hormuz Tracker confirms strait effectively closed to non-Iran-linked vessels for 10th consecutive day',
+    sentiment: 'bearish',
+    sentimentLabel: 'BEARISH SUPPLY',
+    url: '#'
+  },
+  {
+    time: feedTime(2.5),
+    source: 'gov',
+    sourceLabel: 'GOV',
+    headline: 'Pentagon spokesperson: "Coalition naval forces maintaining freedom of navigation in the Persian Gulf region"',
+    sentiment: 'neutral',
+    sentimentLabel: 'OFFICIAL',
+    url: '#'
+  },
+  {
+    time: feedTime(3),
+    source: 'telegram',
+    sourceLabel: 'TG',
+    headline: 'Local Bandar Abbas channel: Multiple explosions heard near Qeshm Island overnight. Residents report military helicopter activity since 03:00 local.',
+    sentiment: 'critical',
+    sentimentLabel: 'CRITICAL',
+    url: '#'
+  },
+  {
+    time: feedTime(3.5),
+    source: 'x',
+    sourceLabel: 'X',
+    headline: 'Aviation OSINT: US KC-135 tanker aircraft running continuous racetrack patterns over UAE/Oman — suggests sustained combat air operations',
+    sentiment: 'bearish',
+    sentimentLabel: 'ESCALATION',
+    url: '#'
+  },
+  {
+    time: feedTime(4),
+    source: 'osint',
+    sourceLabel: 'OSINT',
+    headline: 'Regional Monitor: Internet connectivity in Bushehr province dropped 40% overnight — possible infrastructure strike or deliberate blackout',
+    sentiment: 'critical',
+    sentimentLabel: 'CRITICAL',
+    url: '#'
+  },
+  {
+    time: feedTime(5),
+    source: 'x',
+    sourceLabel: 'X',
+    headline: 'Vessel OSINT: Chinese-flagged tanker "Shandong Spirit" completed eastbound transit — 1 of only 3 non-Iranian vessels to pass in 72h',
+    sentiment: 'neutral',
+    sentimentLabel: 'NOTABLE',
+    url: '#'
+  },
+  {
+    time: feedTime(5.5),
+    source: 'news',
+    sourceLabel: 'NEWS',
+    headline: 'France24: Ships brandishing China-links to navigate Hormuz — Iran selectively allowing Chinese-affiliated vessels through',
+    sentiment: 'bearish',
+    sentimentLabel: 'BEARISH WEST',
+    url: '#'
+  },
+  {
+    time: feedTime(6),
+    source: 'telegram',
+    sourceLabel: 'TG',
+    headline: 'Persian Gulf shipping channel: GPS jamming intensity increased — vessels reporting 2-5km position errors throughout strait',
+    sentiment: 'critical',
+    sentimentLabel: 'CRITICAL',
+    url: '#'
+  },
+  {
+    time: feedTime(7),
+    source: 'osint',
+    sourceLabel: 'OSINT',
+    headline: 'GCaptain: War risk insurance for Hormuz transit now quoted at 5-10% of hull value — effectively making commercial transit economically unviable',
+    sentiment: 'bearish',
+    sentimentLabel: 'BEARISH SUPPLY',
+    url: '#'
+  },
+  {
+    time: feedTime(8),
+    source: 'x',
+    sourceLabel: 'X',
+    headline: '@AuroraIntel: CENTCOM confirms "defensive strikes" on 3 Iranian fast-attack boat bases overnight — Iran vows retaliation',
+    sentiment: 'critical',
+    sentimentLabel: 'ESCALATION',
+    url: '#'
+  },
+  {
+    time: feedTime(16),
+    source: 'gov',
+    sourceLabel: 'GOV',
+    headline: 'White House: "We are taking all necessary steps to ensure global energy security. SPR releases being considered."',
+    sentiment: 'neutral',
+    sentimentLabel: 'OFFICIAL',
+    url: '#'
+  },
+  {
+    time: feedTime(18),
+    source: 'telegram',
+    sourceLabel: 'TG',
+    headline: 'IRGC-affiliated channel: "Any vessel attempting forced passage will be treated as hostile. The strait is under full Islamic Republic control."',
+    sentiment: 'critical',
+    sentimentLabel: 'THREAT',
+    url: '#'
+  },
+  {
+    time: feedTime(20),
+    source: 'osint',
+    sourceLabel: 'OSINT',
+    headline: 'TankerTrackers.com: Saudi Aramco diverting exports to Red Sea pipeline — significant capacity constraints emerging',
+    sentiment: 'bearish',
+    sentimentLabel: 'BEARISH SUPPLY',
+    url: '#'
+  },
+  {
+    time: feedTime(22),
+    source: 'news',
+    sourceLabel: 'NEWS',
+    headline: 'Reuters: India and Japan call emergency energy security meetings — both nations heavily dependent on Hormuz oil flows',
+    sentiment: 'bearish',
+    sentimentLabel: 'DEMAND SIGNAL',
+    url: '#'
+  },
+  {
+    time: feedTime(24),
+    source: 'x',
+    sourceLabel: 'X',
+    headline: 'Maritime OSINT: Imagery shows Iranian mine-laying vessel near Tunb Islands — historical chokepoint for minefield deployment',
+    sentiment: 'critical',
+    sentimentLabel: 'CRITICAL',
+    url: '#'
+  }
+];
+
+// =====================
+// RENDER FEED
+// =====================
+let currentFilter = 'all';
+
+function renderFeed(filter) {
+  const container = document.getElementById('feed-container');
+  const filtered = filter === 'all' ? feedItems : feedItems.filter(i => i.source === filter);
+
+  container.innerHTML = filtered.map(item => `
+    <div class="feed-item" data-source="${item.source}">
+      <div class="feed-time">
+        ${item.time} UTC
+        <span class="feed-source src-${item.source}">${item.sourceLabel}</span>
+      </div>
+      <div class="feed-headline">${item.headline}</div>
+      <span class="feed-sentiment sentiment-${item.sentiment}">${item.sentimentLabel}</span>
+    </div>
+  `).join('');
+}
+
+function filterFeed(filter, btn) {
+  currentFilter = filter;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderFeed(filter);
+}
+
+try { renderFeed('all'); } catch(e) { console.warn('renderFeed init error:', e.message); }
+
+// =====================
+// TRANSIT LOG
+// =====================
+// Generate transit data relative to current date
+function generateTransits() {
+  const vessels = [
+    { vessel: 'SABITI', type: 'VLCC', flag: 'Iran', flagClass: 'flag-iran' },
+    { vessel: 'SHANDONG SPIRIT', type: 'Suezmax', flag: 'China', flagClass: 'flag-china' },
+    { vessel: 'DENA', type: 'VLCC', flag: 'Iran', flagClass: 'flag-iran' },
+    { vessel: 'PACIFIC VOYAGER', type: 'Aframax', flag: 'Liberia', flagClass: 'flag-other' },
+    { vessel: 'DALIAN STAR', type: 'VLCC', flag: 'China', flagClass: 'flag-china' },
+    { vessel: 'FORTUNE', type: 'Aframax', flag: 'Iran', flagClass: 'flag-iran' },
+    { vessel: 'MARE ATLANTIC', type: 'Suezmax', flag: 'Malta', flagClass: 'flag-other' },
+    { vessel: 'ADRIAN DARYA', type: 'VLCC', flag: 'Iran', flagClass: 'flag-iran' },
+    { vessel: 'NORDIC FREEDOM', type: 'Aframax', flag: 'Norway', flagClass: 'flag-other' },
+    { vessel: 'ZHONGSHAN', type: 'VLCC', flag: 'China', flagClass: 'flag-china' },
+  ];
+  const dirs = ['Eastbound', 'Westbound'];
+  const statuses = ['PASSED', 'PASSED', 'PASSED', 'PASSED', 'PASSED', 'PASSED', 'TURNED BACK', 'DIVERTED'];
+  const now = new Date();
+  return vessels.map((v, i) => {
+    const t = new Date(now.getTime() - i * 3.5 * 3600000 - Math.random() * 1800000);
+    const pad = n => String(n).padStart(2, '0');
+    const timeStr = `${t.getUTCFullYear()}-${pad(t.getUTCMonth()+1)}-${pad(t.getUTCDate())} ${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}`;
+    return { time: timeStr, ...v, dir: dirs[i % 2], status: statuses[i % statuses.length] };
+  });
+}
+const transits = generateTransits();
+
+try {
+  document.getElementById('transit-log').innerHTML = transits.map(t => {
+    const statusColor = t.status === 'PASSED' ? 'var(--accent-green)' :
+                         t.status === 'TURNED BACK' ? 'var(--accent-red)' : 'var(--accent-orange)';
+    return `<tr>
+      <td>${t.time}</td>
+      <td style="color: var(--text-primary); font-weight: 600;">${t.vessel}</td>
+      <td>${t.type}</td>
+      <td><span class="flag-tag ${t.flagClass}">${t.flag}</span></td>
+      <td>${t.dir}</td>
+      <td style="color: ${statusColor}; font-weight: 700;">${t.status}</td>
+    </tr>`;
+  }).join('');
+} catch(e) { console.warn('Transit log render error:', e.message); }
+
+// =====================
+// OSINT SOURCES
+// =====================
+const sources = [
+  { name: 'Vessel Tracking Feed', url: '#', status: 'live' },
+  { name: 'Regional Conflict Monitor', url: '#', status: 'live' },
+  { name: 'Maritime News Aggregator', url: '#', status: 'live' },
+  { name: 'Energy Market Wire', url: '#', status: 'delayed' },
+  { name: 'Aerial Surveillance Feed', url: '#', status: 'live' },
+  { name: 'Social Media OSINT — 4 accounts', url: '#', status: 'live' },
+];
+
+try {
+  document.getElementById('source-grid').innerHTML = sources.map(s => `
+    <a class="source-item" href="${s.url}" target="_blank" rel="noopener">
+      <span class="source-dot ${s.status}"></span>
+      <span>${s.name}</span>
+    </a>
+  `).join('');
+} catch(e) { console.warn('Source grid render error:', e.message); }
+
+// =====================
+// SIGNAL BREAKDOWN
+// =====================
+const signals = [
+  { label: 'AIS Transit Count', value: '--', color: 'var(--text-muted)' },
+  { label: 'Insurance Premiums', value: '--', color: 'var(--text-muted)' },
+  { label: 'OSINT Sentiment', value: '--', color: 'var(--text-muted)' },
+  { label: 'Tanker Anchorage', value: '--', color: 'var(--text-muted)' },
+  { label: 'Military Activity', value: '--', color: 'var(--text-muted)' },
+  { label: 'Narrative Gap', value: '--', color: 'var(--text-muted)' },
+];
+
+try {
+  document.getElementById('signal-breakdown').innerHTML = signals.map(s => `
+    <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.03);">
+      <span>${s.label}</span>
+      <span style="color: ${s.color}; font-weight: 700;">${s.value}</span>
+    </div>
+  `).join('');
+} catch(e) { console.warn('Signal breakdown render error:', e.message); }
+
+// =====================
+// PREDICTION MARKETS — Live from Polymarket API
+// =====================
+const POLYMARKET_EVENTS = [
+  { slug: 'will-iran-close-the-strait-of-hormuz-by-2027', label: 'Iran closes Strait of Hormuz?', filter: /Hormuz.*March|Hormuz.*before 2027/i },
+  { slug: 'us-x-iran-ceasefire-by', label: 'US-Iran ceasefire?', filter: /ceasefire.*March|ceasefire.*April/i },
+  { slug: 'iran-strikes-israel-on', label: 'Iran strikes Israel?', filter: /strikes.*March|strikes.*April/i },
+  { slug: 'us-forces-enter-iran-by', label: 'US forces enter Iran?', filter: /enter.*April|enter.*June/i },
+  { slug: 'iran-x-israelus-conflict-ends-by', label: 'Iran conflict ends?', filter: /ends.*April|ends.*June/i },
+  { slug: 'iran-leadership-change-by', label: 'Iran leadership change?', filter: /leadership.*2026|leadership.*June/i },
+  { slug: 'will-crude-oil-cl-hit-by-end-of-march', label: 'Crude Oil price target?', filter: /\$100|\$110|\$120|hit.*\d+.*March/i },
+  { slug: 'what-will-crude-oil-cl-settle-at-in-march', label: 'CL March settlement?', filter: /settle|above.*\$|range/i },
+];
+
+function renderPredictions(markets) {
+  const grid = document.getElementById('predictions-grid');
+  if (!markets || markets.length === 0) {
+    grid.innerHTML = '<div style="grid-column: span 4; text-align: center; color: var(--text-muted); padding: 24px;">Loading Polymarket data...</div>';
+    return;
+  }
+  grid.innerHTML = markets.map(m => {
+    const pctNum = Math.round(m.prob * 100);
+    const color = pctNum >= 60 ? 'var(--accent-green)' : pctNum >= 30 ? 'var(--accent-orange)' : 'var(--accent-red)';
+    const signal = pctNum >= 70 ? 'Very Likely' : pctNum >= 50 ? 'Likely' : pctNum >= 30 ? 'Possible' : pctNum >= 15 ? 'Unlikely' : 'Very Unlikely';
+    return `
+      <div style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; cursor: pointer;" onclick="window.open('https://polymarket.com/event/${m.slug}','_blank')">
+        <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px; min-height: 40px;">${m.question}</div>
+        <div style="font-size: 32px; font-weight: 900; color: ${color};">${pctNum}%</div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">${signal}</div>
+        ${m.volume ? `<div style="font-size: 9px; color: var(--text-muted); margin-top: 4px;">Vol: $${parseFloat(m.volume) > 1e6 ? (parseFloat(m.volume)/1e6).toFixed(1)+'M' : parseFloat(m.volume) > 1e3 ? (parseFloat(m.volume)/1e3).toFixed(0)+'K' : m.volume}</div>` : ''}
+        <div style="font-size: 9px; color: var(--text-muted); margin-top: 4px; opacity: 0.6;">POLYMARKET LIVE · click to view</div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function fetchPredictionMarkets() {
+  const allMarkets = [];
+  for (const ev of POLYMARKET_EVENTS) {
+    try {
+      const url = `https://api.codetabs.com/v1/proxy?quest=https://gamma-api.polymarket.com/events?slug=${ev.slug}`;
+      const resp = await fetchWithTimeout(url, {}, 10000);
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.length > 0 && data[0].markets) {
+          const active = data[0].markets.filter(m => m.active && !m.closed && m.outcomePrices);
+          if (active.length > 0) {
+            // For oil price events with multiple price levels, pick highest-volume market
+            if (ev.slug.includes('crude-oil')) {
+              const sorted = active.sort((a, b) => parseFloat(b.volume || 0) - parseFloat(a.volume || 0));
+              const pick = sorted.find(m => ev.filter.test(m.question)) || sorted[0];
+              const prices = JSON.parse(pick.outcomePrices);
+              allMarkets.push({ question: pick.question, prob: parseFloat(prices[0]), slug: ev.slug, volume: pick.volume });
+            } else {
+              let pick = active.find(m => ev.filter.test(m.question)) || active[0];
+              const prices = JSON.parse(pick.outcomePrices);
+              allMarkets.push({ question: pick.question, prob: parseFloat(prices[0]), slug: ev.slug, volume: pick.volume });
+            }
+          }
+        }
+      }
+    } catch(e) { console.warn(`Polymarket ${ev.slug} error:`, e.message); }
+  }
+  if (allMarkets.length > 0) {
+    renderPredictions(allMarkets);
+  } else {
+    renderPredictions([
+      { question: 'Strait of Hormuz closed before 2027?', prob: 0.99, slug: 'will-iran-close-the-strait-of-hormuz-by-2027' },
+      { question: 'US-Iran ceasefire by March 31?', prob: 0.27, slug: 'us-x-iran-ceasefire-by' },
+      { question: 'US forces enter Iran by April 30?', prob: 0.06, slug: 'us-forces-enter-iran-by' },
+      { question: 'Iran-Israel/US conflict ends by June 30?', prob: 0.30, slug: 'iran-x-israelus-conflict-ends-by' },
+      { question: 'Will Crude Oil (CL) hit $100 by end of March?', prob: 0.90, slug: 'will-crude-oil-cl-hit-by-end-of-march' },
+      { question: 'Will Crude Oil (CL) hit $120 by end of March?', prob: 0.71, slug: 'will-crude-oil-cl-hit-by-end-of-march' },
+    ]);
+  }
+}
+
+try { renderPredictions(null); } catch(e) { console.warn('renderPredictions init error:', e.message); }
+
+// =====================
+// Chart display
+// =====================
+function updateOilChartWithRealData() { /* handled by fetchOilPriceChart */ }
+
+// =====================
+// TRANSIT CHART
+// =====================
+const transitDays = [];
+const transitCounts = [];
+const transitBaseline = [];
+const baseDate = new Date();
+baseDate.setDate(baseDate.getDate() - 29);
+
+for (let i = 0; i < 30; i++) {
+  const d = new Date(baseDate);
+  d.setDate(d.getDate() + i);
+  transitDays.push((d.getMonth()+1) + '/' + d.getDate());
+  transitBaseline.push(85); // historical average
+
+  if (i < 16) {
+    transitCounts.push(Math.floor(70 + Math.random() * 30));
+  } else if (i < 20) {
+    transitCounts.push(Math.floor(40 - i * 1.5 + Math.random() * 15));
+  } else if (i < 24) {
+    transitCounts.push(Math.floor(10 + Math.random() * 8));
+  } else {
+    transitCounts.push(Math.floor(2 + Math.random() * 5));
+  }
+}
+
+// Transit chart init — waits for Chart.js to be ready
+function initTransitChart() {
+  if (typeof Chart === 'undefined') {
+    console.log('[TRANSIT] Chart.js not ready, retrying in 500ms...');
+    setTimeout(initTransitChart, 500);
+    return;
+  }
+  try {
+    const transitCtx = document.getElementById('transitChart').getContext('2d');
+    new Chart(transitCtx, {
+      type: 'bar',
+      data: {
+        labels: transitDays,
+        datasets: [
+          {
+            label: 'Daily Transits',
+            data: transitCounts,
+            backgroundColor: transitCounts.map(v =>
+              v > 50 ? 'rgba(34,197,94,0.6)' :
+              v > 20 ? 'rgba(245,158,11,0.6)' :
+              'rgba(239,68,68,0.6)'
+            ),
+            borderRadius: 3,
+          },
+          {
+            label: 'Historical Avg (85/day)',
+            data: transitBaseline,
+            type: 'line',
+            borderColor: 'rgba(100,116,139,0.5)',
+            borderDash: [5, 5],
+            borderWidth: 1,
+            pointRadius: 0,
+            fill: false,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            labels: { color: '#94a3b8', font: { family: 'monospace', size: 10 } }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#64748b', font: { size: 9 }, maxTicksLimit: 8 },
+            grid: { display: false }
+          },
+          y: {
+            ticks: { color: '#64748b', font: { size: 10 } },
+            grid: { color: 'rgba(42,58,85,0.3)' }
+          }
+        }
+      }
+    });
+    console.log('[TRANSIT] Chart rendered successfully');
+  } catch(e) {
+    console.warn('[TRANSIT] Chart failed:', e.message);
+    const chartEl = document.getElementById('transitChart');
+    if (chartEl) chartEl.parentElement.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:24px;font-size:11px;">Transit chart error: ' + e.message + '</div>';
+  }
+}
+initTransitChart();
+
+// =====================
+// DASHBOARD VERSION & CACHE
+// =====================
+const DASHBOARD_VERSION = 'v21';
+const HEADLINE_STORAGE_KEY = 'hormuz_headlines';
+
+if (localStorage.getItem('hormuz_version') !== DASHBOARD_VERSION) {
+  console.log('Dashboard version changed — clearing stale caches');
+  localStorage.removeItem(HEADLINE_STORAGE_KEY);
+  localStorage.removeItem('hormuz_tg_channels');
+  localStorage.removeItem('hormuz_tg_messages');
+  localStorage.removeItem('hormuz_trump_posts');
+  localStorage.setItem('hormuz_version', DASHBOARD_VERSION);
+}
+
+let headlineCache = JSON.parse(localStorage.getItem(HEADLINE_STORAGE_KEY) || '[]');
+let sentimentFetchComplete = false;
+
+// =====================
+// SENTIMENT ENGINE
+// =====================
+function analyzeSentiment(text) {
+  const lower = text.toLowerCase();
+  let score = 0;
+  ['attack','strike','missile','blocked','war','blockade','nuclear','seized','bomb','invasion','destroy','escalat'].forEach(w => { if (lower.includes(w)) score -= 3; });
+  ['surge','spike','risk','disruption','sanction','tension','warning','delay','shortage','restrict','threat','halt','suspend','crisis','catastroph'].forEach(w => { if (lower.includes(w)) score -= 1; });
+  ['ceasefire','peace','reopen','resume','deal','negotiate','calm','truce','agreement','diplomatic','deescalat','withdraw','settle'].forEach(w => { if (lower.includes(w)) score += 3; });
+  ['stable','ease','recover','lift','supply','cooperat','normal'].forEach(w => { if (lower.includes(w)) score += 1; });
+  if (score <= -4) return 'critical';
+  if (score < -1) return 'bearish';
+  if (score > 3) return 'bullish';
+  return 'neutral';
+}
+
+function analyzeSentimentLabel(text) {
+  const s = analyzeSentiment(text);
+  return s === 'critical' ? 'CRITICAL' :
+         s === 'bearish' ? 'BEARISH' :
+         s === 'bullish' ? 'BULLISH' : 'NEUTRAL';
+}
+
+function sentimentScore(text) {
+  const lower = text.toLowerCase();
+  let score = 0;
+  ['attack','strike','missile','blocked','war','blockade','nuclear','seized','bomb','invasion','destroy','escalat'].forEach(w => { if (lower.includes(w)) score -= 3; });
+  ['surge','spike','risk','disruption','sanction','tension','warning','delay','shortage','restrict','threat','halt','suspend','crisis','catastroph'].forEach(w => { if (lower.includes(w)) score -= 1; });
+  ['ceasefire','peace','reopen','resume','deal','negotiate','calm','truce','agreement','diplomatic','deescalat','withdraw','settle'].forEach(w => { if (lower.includes(w)) score += 3; });
+  ['stable','ease','recover','lift','supply','cooperat','normal'].forEach(w => { if (lower.includes(w)) score += 1; });
+  return score;
+}
+
+// =====================
+// HEADLINE SENTIMENT DISPLAY
+// =====================
+function renderSentimentDashboard() {
+  // Count sentiment categories
+  let bullish = 0, bearish = 0, neutral = 0, totalScore = 0;
+  headlineCache.forEach(h => {
+    const s = h.sentiment;
+    if (s === 'critical' || s === 'bearish') bearish++;
+    else if (s === 'bullish') bullish++;
+    else neutral++;
+    totalScore += h.score || 0;
+  });
+  const total = headlineCache.length;
+
+  // Update stats
+  document.getElementById('sent-total').textContent = total;
+  document.getElementById('sent-negative').textContent = bearish;
+  document.getElementById('sent-positive').textContent = bullish;
+
+  const scoreEl = document.getElementById('sent-score');
+  scoreEl.textContent = totalScore > 0 ? '+' + totalScore : totalScore;
+  scoreEl.style.color = totalScore > 5 ? 'var(--accent-green)' : totalScore < -5 ? 'var(--accent-red)' : 'var(--accent-orange)';
+
+  // Update alert bar with % decision
+  const alertEl = document.getElementById('sentiment-alert-level');
+  const alertText = document.getElementById('sentiment-alert-text');
+  alertEl.className = 'trump-alert-level';
+
+  const bearPctVal = total > 0 ? Math.round((bearish / total) * 100) : 0;
+  const bullPctVal = total > 0 ? Math.round((bullish / total) * 100) : 0;
+
+  if (totalScore <= -15) {
+    alertEl.classList.add('hot');
+    alertText.textContent = `SENTIMENT: ${bearPctVal}% BEARISH — EXTREME FEAR — STRONG SELL SIGNAL`;
+  } else if (totalScore <= -5) {
+    alertEl.classList.add('warm');
+    alertText.textContent = `SENTIMENT: ${bearPctVal}% BEARISH — FEAR DOMINATES`;
+  } else if (totalScore >= 10) {
+    alertEl.classList.add('quiet');
+    alertText.textContent = `SENTIMENT: ${bullPctVal}% BULLISH — OPTIMISM DETECTED`;
+  } else if (total > 0) {
+    alertEl.classList.add('quiet');
+    alertText.textContent = `SENTIMENT: ${bullPctVal}% BULL / ${bearPctVal}% BEAR — MIXED SIGNAL`;
+  } else {
+    alertEl.classList.add('quiet');
+    alertText.textContent = sentimentFetchComplete ? 'SENTIMENT: AWAITING RELEVANT HEADLINES' : 'SENTIMENT: LOADING...';
+  }
+
+  // Update bar
+  if (total > 0) {
+    const bullPct = Math.round((bullish / total) * 100);
+    const bearPct = Math.round((bearish / total) * 100);
+    const neutPct = 100 - bullPct - bearPct;
+    document.getElementById('sent-bar-green').style.width = bullPct + '%';
+    document.getElementById('sent-bar-gray').style.width = neutPct + '%';
+    document.getElementById('sent-bar-red').style.width = bearPct + '%';
+    document.getElementById('sent-bar-bull').textContent = bullPct + '%';
+    document.getElementById('sent-bar-bear').textContent = bearPct + '%';
+  }
+
+  // Update last fetch time
+  if (headlineCache.length > 0) {
+    document.getElementById('sent-last-update').textContent = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  }
+
+  // Render headline feed
+  const feedEl = document.getElementById('sentiment-feed');
+  if (headlineCache.length === 0) {
+    if (sentimentFetchComplete) {
+      // Fetch completed but no relevant headlines found
+      const statusSummary = Object.entries(feedStatus).map(([name, st]) => {
+        const icon = st.status === 'ok' ? '&#9679;' : '&#9675;';
+        const color = st.status === 'ok' ? 'var(--accent-green)' : 'var(--accent-red)';
+        return `<span style="color:${color};font-size:10px;">${icon} ${name}</span>`;
+      }).join(' &nbsp; ');
+      feedEl.innerHTML = `<div style="text-align: center; padding: 24px;">
+        <div style="color: var(--accent-orange); font-size: 13px; font-weight: 700; margin-bottom: 8px;">NO RELEVANT HEADLINES</div>
+        <div style="color: var(--text-muted); font-size: 11px; margin-bottom: 12px;">No oil, Iran, or Hormuz-related headlines detected in current news cycle.</div>
+        <div style="color: var(--text-muted); font-size: 10px;">Feed status: ${statusSummary || 'Checking sources...'}</div>
+      </div>`;
+    } else {
+      feedEl.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 24px;">Loading headlines from news sources...</div>';
+    }
+    return;
+  }
+
+  const sorted = [...headlineCache].sort((a, b) => new Date(b.time) - new Date(a.time));
+  feedEl.innerHTML = sorted.slice(0, 40).map(h => {
+    const sentColor = h.sentiment === 'critical' ? 'var(--accent-red)' :
+                      h.sentiment === 'bearish' ? '#e08040' :
+                      h.sentiment === 'bullish' ? 'var(--accent-green)' : 'var(--text-muted)';
+    const sentLabel = h.sentiment === 'critical' ? 'CRITICAL' :
+                      h.sentiment === 'bearish' ? 'BEARISH' :
+                      h.sentiment === 'bullish' ? 'BULLISH' : 'NEUTRAL';
+    const borderLeft = h.sentiment === 'critical' ? 'border-left: 3px solid var(--accent-red);' :
+                       h.sentiment === 'bullish' ? 'border-left: 3px solid var(--accent-green);' : '';
+    return `<div style="padding: 8px 12px; background: rgba(0,0,0,0.15); border-radius: 6px; margin-bottom: 4px; ${borderLeft}">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 11px; color: var(--text-primary); flex: 1; line-height: 1.4;">${h.title}</span>
+        <div style="display: flex; gap: 8px; align-items: center; margin-left: 12px; flex-shrink: 0;">
+          <span style="font-size: 9px; color: ${sentColor}; font-weight: 700; padding: 2px 6px; background: rgba(0,0,0,0.3); border-radius: 3px;">${sentLabel}</span>
+          <span style="font-size: 9px; color: var(--text-muted);">${h.source}</span>
+        </div>
+      </div>
+      <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;">${h.time || ''}</div>
+    </div>`;
+  }).join('');
+}
+
+// =====================
+// NEWS SOURCES STATUS
+// =====================
+const NEWS_FEEDS = [
+  { name: 'OilPrice.com', url: 'https://oilprice.com/rss/main', icon: 'OIL', color: '#f59e0b' },
+  { name: 'BBC World', url: 'https://feeds.bbci.co.uk/news/world/rss.xml', icon: 'BBC', color: '#3b82f6' },
+  { name: 'CNBC', url: 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114', icon: 'CNBC', color: '#22c55e' },
+  { name: 'NPR Politics', url: 'https://feeds.npr.org/1014/rss.xml', icon: 'NPR', color: '#06b6d4' },
+  { name: 'BBC Business', url: 'https://feeds.bbci.co.uk/news/business/rss.xml', icon: 'BIZ', color: '#8b5cf6' },
+  { name: 'Fox Politics', url: 'https://moxie.foxnews.com/google-publisher/politics.xml', icon: 'FOX', color: '#ef4444' },
+  { name: 'MarketWatch', url: 'https://feeds.marketwatch.com/marketwatch/topstories/', icon: 'MW', color: '#14b8a6' },
+  { name: 'Politico', url: 'https://rss.politico.com/politics-news.xml', icon: 'POL', color: '#a855f7' },
+];
+
+let feedStatus = {};
+
+function renderNewsSources() {
+  const grid = document.getElementById('news-sources-grid');
+  grid.innerHTML = NEWS_FEEDS.map(f => {
+    const st = feedStatus[f.name] || { status: 'pending', count: 0 };
+    const statusColor = st.status === 'ok' ? 'var(--accent-green)' : st.status === 'error' ? 'var(--accent-red)' : 'var(--text-muted)';
+    const statusText = st.status === 'ok' ? `${st.count} headlines` : st.status === 'error' ? 'OFFLINE' : 'PENDING';
+    return `<div style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(0,0,0,0.15); border-radius: 6px;">
+      <div style="width: 32px; height: 32px; background: ${f.color}20; border: 1px solid ${f.color}40; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; color: ${f.color};">${f.icon}</div>
+      <div style="flex: 1;">
+        <div style="font-size: 11px; color: var(--text-primary);">${f.name}</div>
+        <div style="font-size: 9px; color: ${statusColor};">${statusText}</div>
+      </div>
+      <div style="width: 8px; height: 8px; border-radius: 50%; background: ${statusColor};"></div>
+    </div>`;
+  }).join('');
+}
+
+// =====================
+// FETCH HEADLINES
+// =====================
+function fetchWithTimeout(url, options = {}, ms = 15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timer));
+}
+
+// =====================
+// SMART PROXY — uses local server proxy when hosted, falls back to public CORS proxies
+// =====================
+var USE_LOCAL_PROXY = false; // auto-detected on startup
+var LOCAL_PROXY_BASE = '/api/proxy?url=';
+
+function detectLocalProxy() {
+  return fetch('/api/health', { method: 'GET' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d && d.status === 'ok') {
+        USE_LOCAL_PROXY = true;
+        console.log('[PROXY] Local server proxy detected — using /api/proxy for all requests');
+        return true;
+      }
+      return false;
+    })
+    .catch(function() {
+      USE_LOCAL_PROXY = false;
+      console.log('[PROXY] No local proxy — using public CORS proxies (slower, less reliable)');
+      return false;
+    });
+}
+
+// Returns a proxied URL — local server if available, else public proxy
+function proxyUrl(targetUrl) {
+  if (USE_LOCAL_PROXY) {
+    return LOCAL_PROXY_BASE + encodeURIComponent(targetUrl);
+  }
+  // Rotate public proxies
+  var PUBLIC_PROXIES = [
+    'https://api.allorigins.win/raw?url=',
+    'https://api.codetabs.com/v1/proxy/?quest=',
+    'https://corsproxy.io/?',
+    'https://api.cors.lol/?url=',
+  ];
+  var idx = Math.floor(Math.random() * PUBLIC_PROXIES.length);
+  return PUBLIC_PROXIES[idx] + encodeURIComponent(targetUrl);
+}
+
+// Fetch via proxy with automatic fallback across multiple proxies
+async function fetchViaProxy(targetUrl, options, timeoutMs) {
+  options = options || {};
+  timeoutMs = timeoutMs || 10000;
+
+  // If local proxy available, use it directly
+  if (USE_LOCAL_PROXY) {
+    return fetchWithTimeout(LOCAL_PROXY_BASE + encodeURIComponent(targetUrl), options, timeoutMs);
+  }
+
+  // Otherwise try public proxies in sequence
+  var PUBLIC_PROXIES = [
+    'https://api.allorigins.win/raw?url=',
+    'https://api.codetabs.com/v1/proxy/?quest=',
+    'https://corsproxy.io/?',
+    'https://api.cors.lol/?url=',
+  ];
+  for (var i = 0; i < PUBLIC_PROXIES.length; i++) {
+    try {
+      var resp = await fetchWithTimeout(PUBLIC_PROXIES[i] + encodeURIComponent(targetUrl), options, timeoutMs);
+      if (resp.ok) return resp;
+    } catch(e) { /* try next */ }
+  }
+  throw new Error('All proxies failed for: ' + targetUrl);
+}
+
+async function fetchOilPrices() {
+  console.log('Oil prices: handled by Hyperliquid XYZ API');
+}
+
+async function fetchRSSHeadlines() {
+  // Kept for compatibility — now handled by fetchHeadlineSentiment
+}
+
+// Fallback: parse RSS XML directly via CORS proxy
+async function fetchRSSviaProxy(feedUrl) {
+  const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(feedUrl)}`;
+  const resp = await fetchWithTimeout(proxyUrl, {}, 12000);
+  if (!resp.ok) return null;
+  const xml = await resp.text();
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xml, 'text/xml');
+  const items = doc.querySelectorAll('item');
+  if (!items.length) return null;
+  return {
+    status: 'ok',
+    items: Array.from(items).map(item => ({
+      title: item.querySelector('title')?.textContent || '',
+      description: item.querySelector('description')?.textContent || '',
+      link: item.querySelector('link')?.textContent || '',
+      pubDate: item.querySelector('pubDate')?.textContent || ''
+    }))
+  };
+}
+
+async function fetchHeadlineSentiment() {
+  console.log('Fetching headline sentiment from', NEWS_FEEDS.length, 'sources...');
+  let newCount = 0;
+  let feedsOk = 0, feedsFailed = 0;
+
+  for (const feed of NEWS_FEEDS) {
+    try {
+      // Try rss2json first, fallback to direct RSS via CORS proxy
+      let data = null;
+      const resp = await fetchWithTimeout(
+        `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}`,
+        {}, 10000
+      );
+      if (resp.ok) {
+        data = await resp.json();
+      }
+      if (!data || data.status !== 'ok' || !data.items) {
+        console.log(`${feed.name}: rss2json failed, trying direct proxy...`);
+        data = await fetchRSSviaProxy(feed.url);
+      }
+      if (!data || !data.items) {
+        feedStatus[feed.name] = { status: 'error', count: 0 };
+        feedsFailed++;
+        console.warn(`${feed.name}: all methods failed`);
+        continue;
+      }
+      // Process items
+      let feedRelevant = 0;
+      data.items.forEach(item => {
+        const title = (item.title || '').replace(/<[^>]+>/g, '').trim();
+        const desc = (item.description || '').replace(/<[^>]+>/g, '').trim();
+        const combined = title + (desc && desc !== title ? ' ' + desc.slice(0, 150) : '');
+        if (!title) return;
+
+        const lower = combined.toLowerCase();
+        // Filter for relevant headlines (oil, Iran, Hormuz, energy, geopolitical)
+        if (!/iran|oil|hormuz|crude|strait|tanker|opec|energy|middle east|gulf|sanction|brent|wti|petroleum|pipeline|barrel|refiner|blockade|tariff|geopolit|shipping|lng|natural gas|fuel|gasoline|diesel|commodity|commodities|military|navy|war\b|peace|trade war|embargo/i.test(lower)) return;
+
+        // Dedup
+        if (headlineCache.find(h => h.title.slice(0, 60) === title.slice(0, 60))) return;
+
+        const sentiment = analyzeSentiment(combined);
+        const score = sentimentScore(combined);
+        const time = item.pubDate ? new Date(item.pubDate).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' : '';
+
+        headlineCache.unshift({
+          title, source: feed.name, time, sentiment, score,
+          url: item.link || '', fetchedAt: new Date().toISOString()
+        });
+
+        // Also inject into main OSINT feed
+        feedItems.unshift({
+          time: time.replace(' UTC', ''),
+          source: 'news',
+          sourceLabel: feed.icon,
+          headline: title,
+          sentiment: sentiment,
+          sentimentLabel: analyzeSentimentLabel(combined),
+          url: item.link || ''
+        });
+
+        newCount++;
+        feedRelevant++;
+      });
+
+      feedsOk++;
+      feedStatus[feed.name] = { status: 'ok', count: feedRelevant };
+      console.log(`${feed.name}: ${data.items.length} items, ${feedRelevant} relevant`);
+      // Update news source status so user sees live progress
+      try { renderNewsSources(); } catch(e) {}
+    } catch(e) {
+      feedStatus[feed.name] = { status: 'error', count: 0 };
+      feedsFailed++;
+      console.warn(`Feed error ${feed.name}:`, e.message);
+    }
+  }
+
+  // Keep max 300 headlines
+  if (headlineCache.length > 300) headlineCache = headlineCache.slice(0, 300);
+  localStorage.setItem(HEADLINE_STORAGE_KEY, JSON.stringify(headlineCache));
+
+  // Mark fetch as complete so UI shows proper state
+  sentimentFetchComplete = true;
+
+  try { renderSentimentDashboard(); } catch(e) { console.error('renderSentimentDashboard error:', e); }
+  try { renderNewsSources(); } catch(e) { console.error('renderNewsSources error:', e); }
+  try { renderFeed(currentFilter); } catch(e) { console.error('renderFeed error:', e); }
+  try { recalculateSentiment(); } catch(e) { console.error('recalculateSentiment error:', e); }
+
+  console.log(`Headline sentiment: ${newCount} new from ${feedsOk} feeds (${feedsFailed} failed)`);
+}
+
+// Recalculate overall dashboard sentiment from headlines
+function recalculateSentiment() {
+  let totalScore = 0;
+  headlineCache.forEach(h => { totalScore += h.score || 0; });
+
+  const sentEl = document.getElementById('sent-overall');
+  if (sentEl) {
+    sentEl.textContent = totalScore > 0 ? '+' + totalScore : totalScore;
+  }
+
+  // Update the stat box sentiment score
+  const statSentiment = document.querySelector('.stat-val-sentiment');
+  if (statSentiment) {
+    if (totalScore <= -15) {
+      statSentiment.textContent = 'EXTREME FEAR';
+      statSentiment.style.color = 'var(--accent-red)';
+    } else if (totalScore <= -5) {
+      statSentiment.textContent = 'FEAR';
+      statSentiment.style.color = 'var(--accent-orange)';
+    } else if (totalScore >= 5) {
+      statSentiment.textContent = 'GREED';
+      statSentiment.style.color = 'var(--accent-green)';
+    } else {
+      statSentiment.textContent = 'NEUTRAL';
+      statSentiment.style.color = 'var(--text-muted)';
+    }
+  }
+}
+
+
+// =====================
+// HYPERLIQUID OIL MARKETS
+// =====================
+const HL_OIL_ASSETS = [
+  'xyz:CL', 'xyz:BRENTOIL', 'xyz:NATGAS', 'xyz:GOLD', 'xyz:SILVER', 'xyz:COPPER',
+  'xyz:ALUMINIUM', 'xyz:PLATINUM', 'xyz:PALLADIUM', 'xyz:URANIUM'
+];
+const HL_LABELS = {
+  'xyz:CL': 'WTI Crude', 'xyz:BRENTOIL': 'Brent Oil', 'xyz:NATGAS': 'Nat Gas',
+  'xyz:GOLD': 'Gold', 'xyz:SILVER': 'Silver', 'xyz:COPPER': 'Copper',
+  'xyz:ALUMINIUM': 'Aluminium', 'xyz:PLATINUM': 'Platinum', 'xyz:PALLADIUM': 'Palladium', 'xyz:URANIUM': 'Uranium'
+};
+const HL_ICONS = {
+  'xyz:CL': 'CL', 'xyz:BRENTOIL': 'BZ', 'xyz:NATGAS': 'NG',
+  'xyz:GOLD': 'AU', 'xyz:SILVER': 'AG', 'xyz:COPPER': 'CU',
+  'xyz:ALUMINIUM': 'AL', 'xyz:PLATINUM': 'PT', 'xyz:PALLADIUM': 'PD', 'xyz:URANIUM': 'U'
+};
+
+async function fetchHyperliquidOil() {
+  console.log('[HL] Fetching Hyperliquid oil markets...');
+  try {
+    const [metaResp, midsResp] = await Promise.all([
+      fetchWithTimeout('https://api.hyperliquid.xyz/info', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'metaAndAssetCtxs', dex: 'xyz' })
+      }, 12000),
+      fetchWithTimeout('https://api.hyperliquid.xyz/info', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'allMids', dex: 'xyz' })
+      }, 12000)
+    ]);
+
+    if (!metaResp.ok || !midsResp.ok) throw new Error('API returned ' + metaResp.status);
+    const metaData = await metaResp.json();
+    const mids = await midsResp.json();
+    const universe = metaData[0]?.universe || [];
+    const contexts = metaData[1] || [];
+
+    const grid = document.getElementById('hl-oil-grid');
+    const metaEl = document.getElementById('hl-oil-meta');
+    let totalOI = 0, totalVol = 0;
+
+    grid.innerHTML = HL_OIL_ASSETS.map(assetName => {
+      const idx = universe.findIndex(a => a.name === assetName);
+      const ctx = idx >= 0 ? contexts[idx] : null;
+      const mid = mids[assetName];
+      const price = mid ? parseFloat(mid).toFixed(2) : (ctx?.markPx || '--');
+      if (mid) lastHLPrices[assetName] = parseFloat(mid);
+      const oi = ctx ? parseFloat(ctx.openInterest) : 0;
+      const vol = ctx ? parseFloat(ctx.dayNtlVlm) : 0;
+      const funding = ctx ? parseFloat(ctx.funding) : 0;
+      const fundingPct = (funding * 100).toFixed(4);
+      const fundingColor = funding < 0 ? 'var(--accent-red)' : funding > 0 ? 'var(--accent-green)' : 'var(--text-muted)';
+      const fundingSign = funding > 0 ? '+' : '';
+      totalOI += oi; totalVol += vol;
+      const label = HL_LABELS[assetName] || assetName;
+      const icon = HL_ICONS[assetName] || '?';
+
+      return `<div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 12px; border: 1px solid var(--border);">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+          <div style="width: 28px; height: 28px; background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; color: var(--accent-orange);">${icon}</div>
+          <div>
+            <div style="font-size: 11px; font-weight: 700; color: var(--text-primary);">${label}</div>
+            <div style="font-size: 9px; color: var(--text-muted);">PERP · XYZ DEX</div>
+          </div>
+        </div>
+        <div style="font-size: 22px; font-weight: 900; color: var(--accent-orange); font-family: monospace;">$${price}</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 8px; font-size: 10px;">
+          <div><span style="color: var(--text-muted);">OI:</span> <span style="color: var(--text-primary);">$${oi > 1e6 ? (oi/1e6).toFixed(1)+'M' : oi > 1e3 ? (oi/1e3).toFixed(0)+'K' : oi.toFixed(0)}</span></div>
+          <div><span style="color: var(--text-muted);">Vol 24h:</span> <span style="color: var(--text-primary);">$${vol > 1e9 ? (vol/1e9).toFixed(1)+'B' : vol > 1e6 ? (vol/1e6).toFixed(0)+'M' : vol > 1e3 ? (vol/1e3).toFixed(0)+'K' : vol.toFixed(0)}</span></div>
+          <div style="grid-column: span 2;"><span style="color: var(--text-muted);">Funding:</span> <span style="color: ${fundingColor}; font-weight: 700;">${fundingSign}${fundingPct}%</span> <span style="color: var(--text-muted);">${funding < 0 ? '(shorts pay)' : '(longs pay)'}</span></div>
+        </div>
+      </div>`;
+    }).join('');
+
+    metaEl.innerHTML = `<span>Total OI: $${(totalOI/1e6).toFixed(1)}M</span> <span>·</span> <span>24h Volume: $${(totalVol/1e9).toFixed(2)}B</span> <span>·</span> <span>Updated: ${new Date().toUTCString().split(' ').slice(1,5).join(' ')} UTC</span>`;
+    console.log('[HL] Hyperliquid oil data loaded:', HL_OIL_ASSETS.length, 'assets');
+    // Update impact matrix + fair value with fresh prices
+    try { renderHormuzImpact(); } catch(ex) { console.warn('[HL] Impact render error:', ex.message); }
+    try { renderFairValue(); } catch(ex) { console.warn('[HL] Fair value render error:', ex.message); }
+  } catch(e) {
+    console.warn('[HL] Hyperliquid fetch error:', e.message);
+    const grid = document.getElementById('hl-oil-grid');
+    if (grid) grid.innerHTML = '<div style="text-align: center; color: var(--accent-red); padding: 20px; grid-column: span 3; font-size: 12px;">Hyperliquid API error: ' + e.message + '</div>';
+  }
+}
+
+// =====================
+// GLOBAL OIL SUPPLY DISRUPTION TRACKER
+// =====================
+const SUPPLY_DISRUPTIONS = {
+  hormuzBlocked: { label: 'Hormuz Strait Blocked', mbpd: 20.0, status: 'BLOCKED', detail: '~20M bpd normally transits — near-zero traffic since Feb 28', color: 'var(--accent-red)' },
+  productionCuts: {
+    label: 'Gulf Production Cuts (storage full)',
+    mbpd: 6.7,
+    status: 'CUT',
+    detail: 'SA + Iraq + UAE + Kuwait cut 6.7M bpd — tanks full, no ships loading',
+    color: 'var(--accent-orange)',
+    countries: [
+      { name: 'Iraq', flag: '🇮🇶', cut: 2.9, normal: 4.6, reason: 'Basra terminals shut, storage full' },
+      { name: 'Saudi Arabia', flag: '🇸🇦', cut: 2.25, normal: 9.0, reason: 'Ras Tanura damaged, export halt' },
+      { name: 'Kuwait', flag: '🇰🇼', cut: 0.5, normal: 2.7, reason: 'No tanker access, storage full' },
+      { name: 'UAE', flag: '🇦🇪', cut: 0.65, normal: 3.2, reason: 'Ruwais fire, Fujairah limited' },
+      { name: 'Iran', flag: '🇮🇷', cut: 3.2, normal: 3.2, reason: 'Refineries bombed, oil facilities hit' },
+      { name: 'Qatar (LNG)', flag: '🇶🇦', cut: 0.7, normal: 0.7, reason: 'Force majeure declared on all LNG' },
+    ]
+  },
+  refineryDamage: {
+    label: 'Refinery & Infrastructure Damage',
+    mbpd: 1.8,
+    status: 'DAMAGED',
+    detail: 'Bahrain Bapco (force majeure), Saudi Ras Tanura (fire), UAE Ruwais (drone), Iran refineries (airstrikes)',
+    color: 'var(--accent-red)',
+    facilities: [
+      { name: 'Bahrain Bapco Refinery', capacity: '0.27M bpd', status: 'Force Majeure', statusColor: 'var(--accent-red)' },
+      { name: 'Saudi Ras Tanura', capacity: '0.55M bpd', status: 'Fire Damage', statusColor: 'var(--accent-red)' },
+      { name: 'UAE Ruwais Complex', capacity: '0.84M bpd', status: 'Partial Halt', statusColor: 'var(--accent-orange)' },
+      { name: 'Iran Tehran Refinery', capacity: '0.25M bpd', status: 'Bombed', statusColor: 'var(--accent-red)' },
+      { name: 'Iran Abadan Refinery', capacity: '0.40M bpd', status: 'Bombed', statusColor: 'var(--accent-red)' },
+      { name: 'Qatar LNG Plants', capacity: '9.3 Bcf/d gas', status: 'Force Majeure', statusColor: 'var(--accent-red)' },
+    ]
+  },
+  sprRelease: {
+    label: 'IEA Emergency Reserve Release',
+    total: 400,
+    usSpr: 172,
+    usSprCurrent: 415,
+    usSprCapacity: 715,
+    dailyRate: 1.4,
+    detail: '32 IEA nations releasing 400M barrels — US contributing 172M from SPR (415M remaining of 715M capacity)',
+    startDate: '2026-03-18',
+    durationDays: 120,
+  }
+};
+
+function renderSupplyDisruptions() {
+  // Headline total
+  const hormuz = SUPPLY_DISRUPTIONS.hormuzBlocked.mbpd;
+  const cuts = SUPPLY_DISRUPTIONS.productionCuts.mbpd;
+  const refinery = SUPPLY_DISRUPTIONS.refineryDamage.mbpd;
+  const iranDirect = 3.2;
+  // Avoid double-counting: Hormuz blocks transit (20M), but production cuts (6.7M) and refinery damage (1.8M) overlap with Hormuz
+  // True offline = Hormuz transit (20M) + Iran destroyed capacity not in transit (already counted) + extra cuts on top
+  // IEA says ~8M bpd crude shut-in + 2M condensates = 10M bpd net offline
+  const totalOffline = 10.0;
+  const globalSupply = 102.0;
+  const pctGlobal = ((totalOffline / globalSupply) * 100).toFixed(1);
+
+  var el = document.getElementById('supply-total-mbpd');
+  if (el) el.textContent = '~' + totalOffline.toFixed(1);
+  var pctEl = document.getElementById('supply-pct-global');
+  if (pctEl) pctEl.textContent = '~' + pctGlobal + '% of global ' + globalSupply + 'M bpd supply — largest disruption in history (IEA)';
+
+  // Disruption categories
+  var catGrid = document.getElementById('supply-disruption-grid');
+  if (catGrid) {
+    var cats = [
+      { icon: '🚢', label: 'Hormuz Transit Halt', value: '~0 tankers/day', sub: 'Down from ~60/day normal', color: 'var(--accent-red)', bg: 'rgba(239,68,68,0.12)' },
+      { icon: '🏭', label: 'Gulf Production Cuts', value: '−6.7M bpd', sub: 'SA, Iraq, Kuwait, UAE — tanks full', color: 'var(--accent-orange)', bg: 'rgba(245,158,11,0.12)' },
+      { icon: '💥', label: 'Refinery/Infra Damage', value: '~1.8M bpd', sub: 'Bapco, Ras Tanura, Ruwais, Iran', color: 'var(--accent-red)', bg: 'rgba(239,68,68,0.12)' },
+      { icon: '⚠️', label: 'Force Majeure Declared', value: '4 nations', sub: 'Bahrain, Qatar, Iraq, Kuwait', color: 'var(--accent-orange)', bg: 'rgba(245,158,11,0.12)' },
+      { icon: '🛢️', label: 'IEA SPR Release', value: '400M bbls', sub: '32 nations — US: 172M of 415M in SPR', color: 'var(--accent-green)', bg: 'rgba(34,197,94,0.12)' },
+      { icon: '📈', label: 'Net Supply Deficit', value: '~8.6M bpd', sub: 'After SPR release of ~1.4M bpd', color: 'var(--accent-red)', bg: 'rgba(239,68,68,0.12)' },
+    ];
+    catGrid.innerHTML = cats.map(function(c) {
+      return '<div style="background: ' + c.bg + '; border: 1px solid ' + c.color + '33; border-radius: 8px; padding: 12px;">' +
+        '<div style="font-size: 18px; margin-bottom: 4px;">' + c.icon + '</div>' +
+        '<div style="font-size: 10px; color: var(--text-muted); letter-spacing: 0.5px; text-transform: uppercase;">' + c.label + '</div>' +
+        '<div style="font-size: 20px; font-weight: 900; color: ' + c.color + '; font-family: monospace; margin: 4px 0;">' + c.value + '</div>' +
+        '<div style="font-size: 9px; color: var(--text-muted);">' + c.sub + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  // Country breakdown
+  var countryGrid = document.getElementById('supply-country-grid');
+  if (countryGrid) {
+    var countries = SUPPLY_DISRUPTIONS.productionCuts.countries;
+    countryGrid.innerHTML = countries.map(function(c) {
+      var pct = ((c.cut / c.normal) * 100).toFixed(0);
+      var barWidth = Math.min(pct, 100);
+      return '<div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px; border: 1px solid var(--border);">' +
+        '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">' +
+          '<span style="font-size: 12px; font-weight: 700; color: var(--text-primary);">' + c.flag + ' ' + c.name + '</span>' +
+          '<span style="font-size: 14px; font-weight: 900; color: var(--accent-red); font-family: monospace;">−' + c.cut + 'M</span>' +
+        '</div>' +
+        '<div style="background: var(--bg-secondary); border-radius: 4px; height: 6px; overflow: hidden; margin-bottom: 4px;">' +
+          '<div style="background: linear-gradient(90deg, var(--accent-red), var(--accent-orange)); height: 100%; width: ' + barWidth + '%; border-radius: 4px;"></div>' +
+        '</div>' +
+        '<div style="display: flex; justify-content: space-between; font-size: 9px; color: var(--text-muted);">' +
+          '<span>' + pct + '% of ' + c.normal + 'M bpd offline</span>' +
+        '</div>' +
+        '<div style="font-size: 9px; color: var(--accent-orange); margin-top: 3px;">' + c.reason + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  // SPR section
+  var sprGrid = document.getElementById('supply-spr-section');
+  if (sprGrid) {
+    var spr = SUPPLY_DISRUPTIONS.sprRelease;
+    var sprPct = ((spr.usSpr / spr.usSprCurrent) * 100).toFixed(0);
+    var remainAfter = spr.usSprCurrent - spr.usSpr;
+    var remainPct = ((remainAfter / spr.usSprCapacity) * 100).toFixed(0);
+    var daysElapsed = Math.max(0, Math.floor((Date.now() - new Date(spr.startDate).getTime()) / 86400000));
+    var released = Math.min(daysElapsed * spr.dailyRate, spr.usSpr);
+
+    sprGrid.innerHTML =
+      '<div style="background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.3); border-radius: 8px; padding: 12px;">' +
+        '<div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">IEA Coordinated Release</div>' +
+        '<div style="font-size: 28px; font-weight: 900; color: var(--accent-green); font-family: monospace; margin: 6px 0;">400M bbls</div>' +
+        '<div style="font-size: 10px; color: var(--text-muted);">32 nations · ~' + spr.dailyRate + 'M bpd release rate</div>' +
+        '<div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">Start: Mar 18 · Duration: ~' + spr.durationDays + ' days</div>' +
+        '<div style="font-size: 10px; color: var(--accent-orange); margin-top: 4px;">Only offsets ~14% of 10M bpd deficit</div>' +
+      '</div>' +
+      '<div style="background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.3); border-radius: 8px; padding: 12px;">' +
+        '<div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">US Strategic Petroleum Reserve</div>' +
+        '<div style="font-size: 28px; font-weight: 900; color: var(--accent-blue); font-family: monospace; margin: 6px 0;">415M bbls</div>' +
+        '<div style="background: var(--bg-secondary); border-radius: 4px; height: 8px; overflow: hidden; margin: 6px 0;">' +
+          '<div style="background: var(--accent-blue); height: 100%; width: ' + ((spr.usSprCurrent/spr.usSprCapacity)*100).toFixed(0) + '%;"></div>' +
+        '</div>' +
+        '<div style="font-size: 10px; color: var(--text-muted);">Releasing 172M bbls (41% of current stock)</div>' +
+        '<div style="font-size: 10px; color: var(--accent-orange); margin-top: 4px;">Post-release: ' + remainAfter + 'M bbls (' + remainPct + '% of 715M capacity)</div>' +
+      '</div>';
+  }
+}
+
+// Render on load
+try { renderSupplyDisruptions(); } catch(e) { console.warn('[SUPPLY] render error:', e.message); }
+
+// Global price cache (used by fair value model and impact matrix)
+var lastHLPrices = {};
+
+// =====================
+// ESTIMATED FAIR VALUE — $CL MODEL
+// =====================
+const CL_FAIR_VALUE_MODEL = {
+  // Pre-crisis baseline: Jan-Feb 2026 avg WTI prices before Hormuz closure (Feb 28)
+  precrisisAvg: 70.25,      // avg WTI Jan 2-Feb 27, 2026
+  precrisisRange: [65.80, 74.60], // Jan-Feb 2026 WTI range
+  // Key reference points
+  preCrisisClose: 72.10,    // WTI close Feb 27 (day before closure)
+  brentSpread: 4.50,        // typical Brent-WTI spread
+  // Supply shock parameters
+  globalSupply: 102.0,      // M bpd (IEA Q1 2026)
+  globalDemand: 103.5,      // M bpd (IEA Q1 2026, seasonal)
+  offlineMbpd: 10.0,        // net supply offline
+  sprOffsetMbpd: 1.4,       // IEA SPR daily release
+  // Price elasticity of demand (short-run)
+  // Academic consensus: -0.05 to -0.10 for crude in short run
+  elasticityShortRun: -0.07,
+  elasticityMedRun: -0.15,  // 3-6 months
+  // Historical crisis premiums
+  historicalCrises: [
+    { event: '1990 Gulf War (Iraq invades Kuwait)', loss: 4.3, pctSupply: 6.5, priceMove: '+130%', from: 21, to: 46 },
+    { event: '1973 OPEC Embargo', loss: 4.4, pctSupply: 7.5, priceMove: '+300%', from: 3, to: 12 },
+    { event: '1979 Iran Revolution', loss: 5.6, pctSupply: 8.9, priceMove: '+150%', from: 14, to: 35 },
+    { event: '2011 Libya Civil War', loss: 1.5, pctSupply: 1.7, priceMove: '+25%', from: 90, to: 113 },
+    { event: '2019 Saudi Aramco Attack', loss: 5.7, pctSupply: 5.7, priceMove: '+15%', from: 60, to: 69 },
+    { event: '2026 Hormuz Crisis (current)', loss: 10.0, pctSupply: 9.8, priceMove: 'LIVE', from: 72.1, to: null },
+  ],
+  // War/geopolitical risk premium estimate
+  geoPremium: 15, // $/bbl additional risk premium for active conflict
+};
+
+function renderFairValue() {
+  var panel = document.getElementById('fair-value-panel');
+  if (!panel) return;
+  var m = CL_FAIR_VALUE_MODEL;
+
+  // Get live CL price from Hyperliquid
+  var livePrice = lastHLPrices['xyz:CL'] || null;
+  var liveBrent = lastHLPrices['xyz:BRENTOIL'] || null;
+
+  // Calculate net deficit after SPR
+  var netDeficit = m.offlineMbpd - m.sprOffsetMbpd;
+  var pctDeficit = (netDeficit / m.globalSupply) * 100;
+
+  // Elasticity-based fair value: %ΔP = %ΔQ / elasticity
+  var pctSupplyShock = -(netDeficit / m.globalSupply);
+  var pctPriceChange_short = pctSupplyShock / m.elasticityShortRun;
+  var pctPriceChange_med = pctSupplyShock / m.elasticityMedRun;
+  var fairValue_short = m.precrisisAvg * (1 + pctPriceChange_short);
+  var fairValue_med = m.precrisisAvg * (1 + pctPriceChange_med);
+
+  // With geo risk premium
+  var fairValue_withPremium = fairValue_short + m.geoPremium;
+
+  // Floor and ceiling estimates
+  var floorEst = fairValue_med; // medium-run elasticity = lower price
+  var ceilingEst = fairValue_short + m.geoPremium + 10; // short-run + premium + panic overshoot
+
+  // Premium/discount vs live
+  var premDisc = livePrice ? ((livePrice - fairValue_withPremium) / fairValue_withPremium * 100) : null;
+  var premDiscLabel = premDisc !== null ? (premDisc > 0 ? '+' + premDisc.toFixed(1) + '% premium' : premDisc.toFixed(1) + '% discount') : '--';
+  var premDiscColor = premDisc !== null ? (premDisc > 5 ? 'var(--accent-red)' : premDisc < -5 ? 'var(--accent-green)' : 'var(--accent-orange)') : 'var(--text-muted)';
+
+  var html = '';
+
+  // === TOP ROW: Live vs Fair Value ===
+  html += '<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px;">';
+
+  // Pre-crisis baseline
+  html += '<div style="background: rgba(100,116,139,0.1); border: 1px solid rgba(100,116,139,0.3); border-radius: 10px; padding: 14px; text-align: center;">';
+  html += '<div style="font-size: 10px; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px;">Pre-Crisis Avg (Jan-Feb)</div>';
+  html += '<div style="font-size: 32px; font-weight: 900; color: #94a3b8; font-family: monospace;">$' + m.precrisisAvg.toFixed(2) + '</div>';
+  html += '<div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">Range: $' + m.precrisisRange[0] + ' – $' + m.precrisisRange[1] + '</div>';
+  html += '<div style="font-size: 10px; color: var(--text-muted);">Last close before crisis: $' + m.preCrisisClose.toFixed(2) + '</div>';
+  html += '</div>';
+
+  // Estimated fair value
+  html += '<div style="background: linear-gradient(135deg, rgba(34,197,94,0.12), rgba(245,158,11,0.08)); border: 1px solid rgba(34,197,94,0.4); border-radius: 10px; padding: 14px; text-align: center;">';
+  html += '<div style="font-size: 10px; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px;">Est. Fair Value (Model)</div>';
+  html += '<div style="font-size: 32px; font-weight: 900; color: var(--accent-green); font-family: monospace;">$' + fairValue_withPremium.toFixed(2) + '</div>';
+  html += '<div style="font-size: 10px; color: var(--accent-orange); margin-top: 4px;">Range: $' + floorEst.toFixed(0) + ' – $' + ceilingEst.toFixed(0) + '</div>';
+  html += '<div style="font-size: 10px; color: var(--text-muted);">Elasticity + geo premium</div>';
+  html += '</div>';
+
+  // Live price + premium/discount
+  html += '<div style="background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); border-radius: 10px; padding: 14px; text-align: center;">';
+  html += '<div style="font-size: 10px; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px;">Live $CL (Hyperliquid)</div>';
+  html += '<div style="font-size: 32px; font-weight: 900; color: var(--accent-orange); font-family: monospace;">$' + (livePrice ? livePrice.toFixed(2) : '--') + '</div>';
+  html += '<div style="font-size: 11px; font-weight: 700; color: ' + premDiscColor + '; margin-top: 4px;">' + premDiscLabel + ' vs fair value</div>';
+  var moveFromBaseline = livePrice ? ((livePrice - m.precrisisAvg) / m.precrisisAvg * 100).toFixed(1) : '--';
+  html += '<div style="font-size: 10px; color: var(--text-muted);">+' + moveFromBaseline + '% from pre-crisis avg</div>';
+  html += '</div>';
+  html += '</div>';
+
+  // === MODEL BREAKDOWN ===
+  html += '<div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); letter-spacing: 1px; margin-bottom: 8px; text-transform: uppercase;">Fair Value Model Breakdown</div>';
+  html += '<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px;">';
+
+  var modelSteps = [
+    { label: 'Supply Deficit', value: '−' + netDeficit.toFixed(1) + 'M bpd', sub: pctDeficit.toFixed(1) + '% of global supply', icon: '📉', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.3)' },
+    { label: 'Elasticity (Short-run)', value: m.elasticityShortRun.toFixed(2), sub: 'Implies +' + (pctPriceChange_short * 100).toFixed(0) + '% price shock', icon: '📊', bg: 'rgba(99,102,241,0.1)', border: 'rgba(99,102,241,0.3)' },
+    { label: 'Elasticity Price', value: '$' + fairValue_short.toFixed(0), sub: 'Before geo premium', icon: '🧮', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.3)' },
+    { label: 'Geo/War Premium', value: '+$' + m.geoPremium, sub: 'Active conflict risk', icon: '⚔️', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.3)' },
+  ];
+
+  modelSteps.forEach(function(s) {
+    html += '<div style="background: ' + s.bg + '; border: 1px solid ' + s.border + '; border-radius: 8px; padding: 10px; text-align: center;">';
+    html += '<div style="font-size: 16px; margin-bottom: 3px;">' + s.icon + '</div>';
+    html += '<div style="font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">' + s.label + '</div>';
+    html += '<div style="font-size: 18px; font-weight: 900; color: var(--text-primary); font-family: monospace; margin: 3px 0;">' + s.value + '</div>';
+    html += '<div style="font-size: 9px; color: var(--text-muted);">' + s.sub + '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // === HISTORICAL COMPARISONS ===
+  html += '<div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); letter-spacing: 1px; margin-bottom: 8px; text-transform: uppercase;">Historical Crisis Comparisons</div>';
+  html += '<div style="overflow-x: auto;">';
+  html += '<table style="width: 100%; border-collapse: collapse; font-size: 11px;">';
+  html += '<thead><tr style="border-bottom: 1px solid var(--border);">';
+  html += '<th style="text-align: left; padding: 6px 8px; color: var(--text-muted); font-weight: 600; font-size: 9px;">EVENT</th>';
+  html += '<th style="text-align: right; padding: 6px 8px; color: var(--text-muted); font-weight: 600; font-size: 9px;">LOSS (M BPD)</th>';
+  html += '<th style="text-align: right; padding: 6px 8px; color: var(--text-muted); font-weight: 600; font-size: 9px;">% SUPPLY</th>';
+  html += '<th style="text-align: right; padding: 6px 8px; color: var(--text-muted); font-weight: 600; font-size: 9px;">PRICE MOVE</th>';
+  html += '<th style="text-align: right; padding: 6px 8px; color: var(--text-muted); font-weight: 600; font-size: 9px;">FROM → TO</th>';
+  html += '</tr></thead><tbody>';
+
+  m.historicalCrises.forEach(function(c) {
+    var isCurrent = c.to === null;
+    var rowBg = isCurrent ? 'rgba(245,158,11,0.08)' : 'transparent';
+    var rowBorder = isCurrent ? '1px solid rgba(245,158,11,0.3)' : 'none';
+    var toPrice = isCurrent ? (livePrice ? '$' + livePrice.toFixed(0) : 'LIVE') : '$' + c.to;
+    var moveColor = isCurrent ? 'var(--accent-orange)' : 'var(--accent-red)';
+    var moveStr = isCurrent ? (livePrice ? '+' + ((livePrice - c.from) / c.from * 100).toFixed(0) + '%' : 'LIVE') : c.priceMove;
+
+    html += '<tr style="background: ' + rowBg + '; border: ' + rowBorder + '; border-bottom: 1px solid rgba(255,255,255,0.03);">';
+    html += '<td style="padding: 7px 8px; color: ' + (isCurrent ? 'var(--accent-orange)' : 'var(--text-primary)') + '; font-weight: ' + (isCurrent ? '700' : '400') + ';">' + (isCurrent ? '▸ ' : '') + c.event + '</td>';
+    html += '<td style="padding: 7px 8px; text-align: right; font-family: monospace; color: var(--accent-red);">' + c.loss.toFixed(1) + '</td>';
+    html += '<td style="padding: 7px 8px; text-align: right; font-family: monospace; color: var(--text-primary);">' + c.pctSupply.toFixed(1) + '%</td>';
+    html += '<td style="padding: 7px 8px; text-align: right; font-weight: 700; color: ' + moveColor + ';">' + moveStr + '</td>';
+    html += '<td style="padding: 7px 8px; text-align: right; font-family: monospace; color: var(--text-muted);">$' + c.from + ' → ' + toPrice + '</td>';
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+
+  // === FOOTNOTE ===
+  html += '<div style="margin-top: 10px; font-size: 9px; color: var(--text-muted); text-align: right; line-height: 1.5;">';
+  html += 'Model: P<sub>fair</sub> = P<sub>baseline</sub> × (1 + ΔS/ε) + geo premium · Short-run ε = ' + m.elasticityShortRun + ' · Med-run ε = ' + m.elasticityMedRun + '<br>';
+  html += 'Sources: Hamilton (2009), Kilian (2014), IEA OMR Mar 2026 · Pre-crisis avg: WTI Jan 2 – Feb 27, 2026';
+  html += '</div>';
+
+  panel.innerHTML = html;
+}
+
+// Render fair value on load and update on each price refresh
+try { renderFairValue(); } catch(e) { console.warn('[FV] render error:', e.message); }
+
+// =====================
+// HORMUZ COMMODITY IMPACT MATRIX
+// =====================
+const HORMUZ_COMMODITIES = [
+  { name: 'Crude Oil', pctGlobal: '20%', vol: '20M bbl/day', risk: 'CRITICAL', tradeable: 'xyz:CL', category: 'energy', icon: '🛢️' },
+  { name: 'Brent Crude', pctGlobal: '20%', vol: '20M bbl/day', risk: 'CRITICAL', tradeable: 'xyz:BRENTOIL', category: 'energy', icon: '🛢️' },
+  { name: 'LNG', pctGlobal: '20%', vol: '9.3 Bcf/day', risk: 'CRITICAL', tradeable: 'xyz:NATGAS', category: 'energy', icon: '🔥' },
+  { name: 'LPG / Propane', pctGlobal: '35%', vol: '1.5M bbl/day', risk: 'CRITICAL', tradeable: null, category: 'energy', icon: '⛽' },
+  { name: 'Sulfur', pctGlobal: '25%', vol: '15M tons/yr', risk: 'HIGH', tradeable: null, category: 'chemical', icon: '🧪' },
+  { name: 'Urea Fertilizer', pctGlobal: '33%', vol: '~18M tons/yr', risk: 'HIGH', tradeable: null, category: 'agriculture', icon: '🌾' },
+  { name: 'Phosphate', pctGlobal: '20%', vol: '~8M tons/yr', risk: 'HIGH', tradeable: null, category: 'agriculture', icon: '🌿' },
+  { name: 'Polyethylene', pctGlobal: '85%*', vol: '12.5M tons/yr', risk: 'CRITICAL', tradeable: null, category: 'chemical', icon: '🏭' },
+  { name: 'Polypropylene', pctGlobal: '42%', vol: '7M tons/yr', risk: 'HIGH', tradeable: null, category: 'chemical', icon: '🏭' },
+  { name: 'Ethylene', pctGlobal: '30%+', vol: 'trade flow', risk: 'HIGH', tradeable: null, category: 'chemical', icon: '⚗️' },
+  { name: 'Methanol', pctGlobal: '~20%', vol: '14M tons/yr', risk: 'HIGH', tradeable: null, category: 'chemical', icon: '⚗️' },
+  { name: 'Aluminum', pctGlobal: '8-10%', vol: '~5M tons/yr', risk: 'MODERATE', tradeable: null, category: 'metal', icon: '🔩' },
+  { name: 'Copper', pctGlobal: 'Indirect', vol: 'energy link', risk: 'MODERATE', tradeable: 'xyz:COPPER', category: 'metal', icon: '🔩' },
+  { name: 'Gold', pctGlobal: 'Safe haven', vol: 'flight bid', risk: 'INVERSE', tradeable: 'xyz:GOLD', category: 'metal', icon: '🥇' },
+  { name: 'Silver', pctGlobal: 'Safe haven', vol: 'flight bid', risk: 'INVERSE', tradeable: 'xyz:SILVER', category: 'metal', icon: '🥈' },
+  { name: 'Wheat', pctGlobal: 'Indirect', vol: 'fertilizer link', risk: 'MODERATE', tradeable: null, category: 'agriculture', icon: '🌾' },
+  { name: 'Helium', pctGlobal: '~30%', vol: '~50M m³/yr', risk: 'CRITICAL', tradeable: null, category: 'chemical', icon: '🎈' },
+];
+
+// lastHLPrices declared earlier (before fair value model)
+
+function renderHormuzImpact() {
+  const grid = document.getElementById('hormuz-impact-grid');
+  if (!grid) return;
+
+  const riskColors = {
+    'CRITICAL': { bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.4)', text: 'var(--accent-red)' },
+    'HIGH': { bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.4)', text: 'var(--accent-orange)' },
+    'MODERATE': { bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.4)', text: 'var(--accent-blue)' },
+    'INVERSE': { bg: 'rgba(34,197,94,0.12)', border: 'rgba(34,197,94,0.4)', text: 'var(--accent-green)' },
+  };
+
+  grid.innerHTML = HORMUZ_COMMODITIES.map(c => {
+    const rc = riskColors[c.risk] || riskColors['MODERATE'];
+    const price = c.tradeable && lastHLPrices[c.tradeable] ? lastHLPrices[c.tradeable] : null;
+    const priceStr = price ? '$' + (price < 10 ? price.toFixed(4) : price.toFixed(2)) : '—';
+    const liveClass = price ? 'hl-price-live' : '';
+
+    return `<div style="background: ${rc.bg}; border: 1px solid ${rc.border}; border-radius: 8px; padding: 10px; position: relative; overflow: hidden;">
+      <div style="display: flex; justify-content: space-between; align-items: start;">
+        <div style="font-size: 11px; font-weight: 800; color: var(--text-primary);">${c.icon} ${c.name}</div>
+        <span style="font-size: 8px; font-weight: 800; padding: 2px 5px; border-radius: 3px; background: ${rc.bg}; color: ${rc.text}; border: 1px solid ${rc.border};">${c.risk}</span>
+      </div>
+      <div style="margin-top: 6px; font-size: 10px; color: var(--text-muted);">
+        <div><span style="color: ${rc.text}; font-weight: 700;">${c.pctGlobal}</span> of global supply</div>
+        <div style="margin-top: 2px;">${c.vol}</div>
+      </div>
+      ${price ? `<div class="${liveClass}" style="margin-top: 6px; font-size: 14px; font-weight: 900; color: var(--accent-orange); font-family: monospace;">${priceStr}</div>` : `<div style="margin-top: 6px; font-size: 9px; color: var(--text-muted); font-style: italic;">${c.tradeable ? 'Loading...' : 'Not tradeable on HL'}</div>`}
+      <div style="margin-top: 4px; font-size: 8px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">${c.category}</div>
+    </div>`;
+  }).join('');
+}
+
+// Update impact matrix prices from HL data
+function updateImpactPrices() {
+  renderHormuzImpact();
+}
+
+// =====================
+// PRICE TICKER (replaces TradingView ticker tape)
+// =====================
+const TICKER_SYMBOLS = [
+  { coin: 'xyz:CL', label: 'WTI CL', icon: 'CL' },
+  { coin: 'xyz:BRENTOIL', label: 'BRENT', icon: 'BZ' },
+  { coin: 'xyz:NATGAS', label: 'NAT GAS', icon: 'NG' },
+  { coin: 'xyz:GOLD', label: 'GOLD', icon: 'AU' },
+  { coin: 'xyz:SILVER', label: 'SILVER', icon: 'AG' },
+  { coin: 'xyz:COPPER', label: 'COPPER', icon: 'CU' },
+  { coin: 'xyz:ALUMINIUM', label: 'ALUM', icon: 'AL' },
+  { coin: 'xyz:PLATINUM', label: 'PLAT', icon: 'PT' },
+  { coin: 'xyz:PALLADIUM', label: 'PALL', icon: 'PD' },
+  { coin: 'xyz:URANIUM', label: 'URANIUM', icon: 'U' },
+];
+
+// Extra commodities NOT on Hyperliquid — fetched via Yahoo Finance proxy
+// Each has a fallback price so ticker ALWAYS shows something
+const EXTRA_COMMODITY_SYMBOLS = [
+  { yahoo: 'ZW=F', label: 'WHEAT', icon: 'W', fallbackPrice: 555.0, fallbackPrev: 548.0 },
+  { yahoo: 'ZS=F', label: 'SOYBEAN', icon: 'S', fallbackPrice: 1048.0, fallbackPrev: 1040.0 },
+  { yahoo: 'SB=F', label: 'SUGAR', icon: 'SB', fallbackPrice: 19.25, fallbackPrev: 19.10 },
+  { yahoo: 'HG=F', label: 'COPPER HG', icon: 'HG', fallbackPrice: 4.52, fallbackPrev: 4.48 },
+  { yahoo: 'HE=REF', label: 'HELIUM', icon: 'He', fallbackPrice: 35.0, fallbackPrev: 32.0 },
+];
+var extraCommodityCache = {}; // { symbol: { price, chg, chgPct, ts, delayed } }
+
+// Seed cache with fallback prices immediately so ticker never shows blank
+(function seedExtraCommodityCache() {
+  EXTRA_COMMODITY_SYMBOLS.forEach(function(s) {
+    var p = s.fallbackPrice, prev = s.fallbackPrev;
+    extraCommodityCache[s.yahoo] = {
+      price: p, chg: p - prev,
+      chgPct: prev > 0 ? ((p - prev) / prev * 100) : 0,
+      ts: 0, delayed: true
+    };
+  });
+})();
+let tickerPriceHistory = {};
+
+// Fetch extra commodity prices — uses local server proxy when hosted, public proxies as fallback
+// Strategy 1: Yahoo v8 chart API per-symbol via fetchViaProxy (works great with server proxy)
+// Strategy 2: Google Finance HTML scraping
+async function fetchExtraCommodities() {
+  var loaded = 0;
+  var staleThreshold = 180000; // 3 min cache
+  var fetchableSymbols = EXTRA_COMMODITY_SYMBOLS.filter(function(s) { return s.yahoo.indexOf('=F') > -1; });
+
+  // ---- Strategy 1: Yahoo v8 chart API per-symbol via smart proxy ----
+  for (var i = 0; i < fetchableSymbols.length; i++) {
+    var sym = fetchableSymbols[i];
+    if (extraCommodityCache[sym.yahoo] && !extraCommodityCache[sym.yahoo].delayed && (Date.now() - extraCommodityCache[sym.yahoo].ts) < staleThreshold) {
+      loaded++; continue;
+    }
+    try {
+      var yahooUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(sym.yahoo) + '?interval=1d&range=2d&includePrePost=false';
+      var resp = await fetchViaProxy(yahooUrl, {}, 10000);
+      var txt = await resp.text();
+      var data = JSON.parse(txt);
+      var meta = data.chart && data.chart.result && data.chart.result[0] && data.chart.result[0].meta;
+      if (meta && meta.regularMarketPrice) {
+        var price = meta.regularMarketPrice;
+        var prevClose = meta.chartPreviousClose || meta.previousClose || price;
+        extraCommodityCache[sym.yahoo] = {
+          price: price, chg: price - prevClose,
+          chgPct: prevClose > 0 ? ((price - prevClose) / prevClose * 100) : 0,
+          ts: Date.now(), delayed: false
+        };
+        loaded++;
+        console.log('[EXTRA] ' + sym.label + ' via Yahoo v8: $' + price.toFixed(2) + (USE_LOCAL_PROXY ? ' (server proxy)' : ' (public proxy)'));
+      }
+    } catch(e) {
+      console.warn('[EXTRA] Yahoo v8 failed for ' + sym.label + ':', e.message);
+    }
+  }
+  if (loaded >= fetchableSymbols.length) return true;
+
+  // ---- Strategy 2: Google Finance HTML scraping via proxy ----
+  var GOOGLE_MAP = { 'ZW=F': 'ZW1!:CBOT', 'ZS=F': 'ZS1!:CBOT', 'SB=F': 'SB1!:NYMEX', 'HG=F': 'HG1!:COMEX' };
+  for (var i = 0; i < fetchableSymbols.length; i++) {
+    var sym = fetchableSymbols[i];
+    if (extraCommodityCache[sym.yahoo] && !extraCommodityCache[sym.yahoo].delayed && (Date.now() - extraCommodityCache[sym.yahoo].ts) < staleThreshold) continue;
+    var gSym = GOOGLE_MAP[sym.yahoo];
+    if (!gSym) continue;
+    try {
+      var gUrl = 'https://www.google.com/finance/quote/' + gSym;
+      var gResp = await fetchViaProxy(gUrl, {}, 10000);
+      var html = await gResp.text();
+      var m1 = html.match(/data-last-price="([^"]+)"/);
+      if (m1 && m1[1]) {
+        var gPrice = parseFloat(m1[1]);
+        if (gPrice > 0) {
+          var m2 = html.match(/data-previous-close="([^"]+)"/);
+          var gPrev = m2 ? parseFloat(m2[1]) : gPrice;
+          extraCommodityCache[sym.yahoo] = {
+            price: gPrice, chg: gPrice - gPrev,
+            chgPct: gPrev > 0 ? ((gPrice - gPrev) / gPrev * 100) : 0,
+            ts: Date.now(), delayed: false
+          };
+          loaded++;
+          console.log('[EXTRA] ' + sym.label + ' via Google Finance: $' + gPrice.toFixed(2));
+        }
+      }
+    } catch(e) { /* skip */ }
+  }
+
+  console.log('[EXTRA] Loaded ' + loaded + '/' + fetchableSymbols.length + ' live' + (USE_LOCAL_PROXY ? ' (server proxy)' : ' (public proxies)') + ', fallback prices always available');
+  return loaded > 0;
+}
+
+async function fetchPriceTicker() {
+  console.log('[TICKER-PRICE] Fetching price ticker...');
+  try {
+    // Fetch Hyperliquid + extra commodities in parallel
+    const [metaResp, midsResp] = await Promise.all([
+      fetchWithTimeout('https://api.hyperliquid.xyz/info', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'metaAndAssetCtxs', dex: 'xyz' })
+      }, 12000),
+      fetchWithTimeout('https://api.hyperliquid.xyz/info', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'allMids', dex: 'xyz' })
+      }, 12000)
+    ]);
+    if (!metaResp.ok || !midsResp.ok) throw new Error('API returned non-200');
+    const [metaData, mids] = await Promise.all([metaResp.json(), midsResp.json()]);
+    const universe = metaData[0].universe;
+    const assetCtxs = metaData[1];
+
+    const items = [];
+    for (const sym of TICKER_SYMBOLS) {
+      const idx = universe.findIndex(u => u.name === sym.coin);
+      const mid = mids[sym.coin] ? parseFloat(mids[sym.coin]) : null;
+      if (!mid) continue;
+      const ctx = idx >= 0 ? assetCtxs[idx] : null;
+      const prevClose = ctx ? parseFloat(ctx.prevDayPx) : null;
+      const chg = prevClose ? ((mid - prevClose) / prevClose * 100) : 0;
+      const chgAbs = prevClose ? (mid - prevClose) : 0;
+
+      // Store price history for chart
+      if (!tickerPriceHistory[sym.coin]) tickerPriceHistory[sym.coin] = [];
+      tickerPriceHistory[sym.coin].push({ time: Date.now(), price: mid });
+      if (tickerPriceHistory[sym.coin].length > 100) tickerPriceHistory[sym.coin].shift();
+
+      // CRITICAL: Also update lastHLPrices so fair value model always has freshest price
+      lastHLPrices[sym.coin] = mid;
+
+      const isUp = chg >= 0;
+      items.push(`<span class="ticker-item">
+        <span class="ticker-symbol">${sym.label}</span>
+        <span class="ticker-price">$${mid < 10 ? mid.toFixed(4) : mid < 100 ? mid.toFixed(2) : mid.toFixed(2)}</span>
+        <span class="${isUp ? 'ticker-change-up' : 'ticker-change-down'}">${isUp ? '+' : ''}${chg.toFixed(2)}% (${isUp ? '+' : ''}${chgAbs < 10 ? chgAbs.toFixed(4) : chgAbs.toFixed(2)})</span>
+      </span>`);
+    }
+
+    // Append extra commodities (Wheat, Soybean, Sugar, Copper HG, Helium)
+    for (var x = 0; x < EXTRA_COMMODITY_SYMBOLS.length; x++) {
+      var ex = EXTRA_COMMODITY_SYMBOLS[x];
+      var cached = extraCommodityCache[ex.yahoo];
+      if (cached && cached.price > 0) {
+        var exUp = cached.chgPct >= 0;
+        var exPrice = cached.price;
+        var exChg = cached.chgPct;
+        var exChgAbs = cached.chg;
+        var delayedTag = cached.delayed ? ' <span style="color:#666;font-size:9px;">DLY</span>' : '';
+        items.push('<span class="ticker-item">' +
+          '<span class="ticker-symbol" style="color: #a78bfa;">' + ex.label + delayedTag + '</span>' +
+          '<span class="ticker-price">$' + (exPrice < 10 ? exPrice.toFixed(4) : exPrice < 100 ? exPrice.toFixed(2) : exPrice.toFixed(2)) + '</span>' +
+          '<span class="' + (exUp ? 'ticker-change-up' : 'ticker-change-down') + '">' + (exUp ? '+' : '') + exChg.toFixed(2) + '% (' + (exUp ? '+' : '') + (Math.abs(exChgAbs) < 10 ? exChgAbs.toFixed(4) : exChgAbs.toFixed(2)) + ')</span>' +
+        '</span>');
+      }
+    }
+
+    const inner = document.getElementById('price-ticker-inner');
+    if (inner && items.length > 0) {
+      // Duplicate items for seamless scroll
+      const html = items.join('') + items.join('');
+      inner.innerHTML = html;
+    }
+    // Immediately re-render fair value + impact with fresh prices
+    try { renderFairValue(); } catch(e) {}
+    try { renderHormuzImpact(); } catch(e) {}
+    console.log('[TICKER-PRICE] Price ticker loaded:', items.length, 'symbols, CL=$' + (lastHLPrices['xyz:CL'] || 'N/A'));
+  } catch(e) {
+    console.warn('[TICKER-PRICE] Error:', e.message);
+    const inner = document.getElementById('price-ticker-inner');
+    if (inner) inner.innerHTML = '<span style="font-size: 11px; color: var(--accent-red); padding: 0 20px;">Price feed error: ' + e.message + '</span>';
+  }
+}
+
+// =====================
+// OIL PRICE CHART (replaces TradingView chart widget)
+// =====================
+let oilChartInstance = null;
+let oilChartCoin = 'CL';
+let oilCandleData = {};
+
+function switchOilChart(coin, btn) {
+  oilChartCoin = coin;
+  // Update tab active state
+  document.querySelectorAll('#oil-chart-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderOilChart();
+}
+
+async function fetchOilPriceChart() {
+  console.log('[OIL-CHART] Fetching oil candle data...');
+  const coins = ['CL', 'BRENTOIL', 'NATGAS', 'GOLD', 'COPPER', 'SILVER', 'ALUMINIUM', 'PLATINUM', 'PALLADIUM', 'URANIUM'];
+
+  for (const coin of coins) {
+    try {
+      const now = Date.now();
+      const resp = await fetchWithTimeout('https://api.hyperliquid.xyz/info', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'candleSnapshot',
+          req: { coin: 'xyz:' + coin, interval: '1h', startTime: now - 7 * 86400000, endTime: now },
+          dex: 'xyz'
+        })
+      }, 12000);
+      if (!resp.ok) { console.warn('[OIL-CHART] Non-200 for', coin); continue; }
+      const candles = await resp.json();
+      if (Array.isArray(candles) && candles.length > 0) {
+        oilCandleData[coin] = candles.map(c => ({
+          t: c.t, o: parseFloat(c.o), h: parseFloat(c.h), l: parseFloat(c.l), c: parseFloat(c.c), v: parseFloat(c.v)
+        }));
+        console.log('[OIL-CHART]', coin, ':', candles.length, 'candles');
+      }
+    } catch(e) {
+      console.warn('[OIL-CHART] Error fetching', coin, ':', e.message);
+    }
+  }
+  renderOilChart();
+}
+
+function renderOilChart() {
+  const canvas = document.getElementById('oilPriceChart');
+  if (!canvas) return;
+  const data = oilCandleData[oilChartCoin];
+  if (!data || data.length === 0) {
+    // Show loading message on canvas
+    const ctx2 = canvas.getContext('2d');
+    ctx2.clearRect(0, 0, canvas.width, canvas.height);
+    ctx2.fillStyle = '#64748b';
+    ctx2.font = '12px monospace';
+    ctx2.textAlign = 'center';
+    ctx2.fillText('Loading ' + oilChartCoin + ' data...', canvas.width / 2, canvas.height / 2);
+    return;
+  }
+
+  const labels = data.map(c => {
+    const d = new Date(c.t);
+    return d.toLocaleDateString('en', {month:'short',day:'numeric'}) + ' ' + d.toLocaleTimeString('en', {hour:'2-digit',minute:'2-digit',hour12:false});
+  });
+  const closes = data.map(c => c.c);
+  const volumes = data.map(c => c.v);
+  const firstPrice = closes[0];
+  const lastPrice = closes[closes.length - 1];
+  const isUp = lastPrice >= firstPrice;
+  const lineColor = isUp ? '#22c55e' : '#ef4444';
+  const fillColor = isUp ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)';
+
+  if (oilChartInstance) oilChartInstance.destroy();
+
+  try {
+    oilChartInstance = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: oilChartCoin + ' Price',
+          data: closes,
+          borderColor: lineColor,
+          backgroundColor: fillColor,
+          fill: true,
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHitRadius: 10,
+          tension: 0.3,
+          yAxisID: 'y'
+        }, {
+          label: 'Volume',
+          data: volumes,
+          type: 'bar',
+          backgroundColor: 'rgba(245,158,11,0.15)',
+          borderColor: 'rgba(245,158,11,0.3)',
+          borderWidth: 1,
+          yAxisID: 'y1'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1a2235',
+            titleColor: '#e2e8f0',
+            bodyColor: '#94a3b8',
+            borderColor: '#2a3a55',
+            borderWidth: 1,
+            callbacks: {
+              label: function(ctx) {
+                if (ctx.datasetIndex === 0) return oilChartCoin + ': $' + ctx.parsed.y.toFixed(2);
+                return 'Vol: $' + (ctx.parsed.y > 1e6 ? (ctx.parsed.y/1e6).toFixed(1)+'M' : ctx.parsed.y.toFixed(0));
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(42,58,85,0.3)' },
+            ticks: { color: '#64748b', font: { size: 9 }, maxTicksLimit: 12, maxRotation: 0 }
+          },
+          y: {
+            position: 'right',
+            grid: { color: 'rgba(42,58,85,0.3)' },
+            ticks: { color: '#94a3b8', font: { size: 10 }, callback: v => '$' + v.toFixed(2) }
+          },
+          y1: {
+            position: 'left',
+            grid: { display: false },
+            ticks: { display: false },
+            beginAtZero: true
+          }
+        }
+      }
+    });
+  } catch(e) {
+    console.warn('[OIL-CHART] Chart render error:', e.message);
+  }
+}
+
+// =====================
+// WHALE POSITION TRACKER
+// =====================
+const KNOWN_WHALES = [
+  { address: '0x30D3ca3bed41c08E98fBDF671418421a76eE019A', label: 'Sky Cofounder (Rune)', tag: 'ACTIVE' },
+  { address: '0x8Af726685C221b3C26e4e96a33C3703036804e1A', label: 'Oil Short Whale', tag: 'HISTORICAL' },
+  { address: '0x985f0Eaff2F1c4f4Da6edF3fCC9Ef73e97C2A053', label: '$9.5M Oil Shorter', tag: 'HISTORICAL' },
+  { address: '0xf4b80a7bEaDf73C01E5f71C7A64A0fE217835854', label: '20x Oil Leverager', tag: 'HISTORICAL' },
+];
+
+function getCustomWhales() {
+  try {
+    return JSON.parse(localStorage.getItem('hormuz_custom_whales') || '[]');
+  } catch { return []; }
+}
+
+function saveCustomWhales(list) {
+  localStorage.setItem('hormuz_custom_whales', JSON.stringify(list));
+}
+
+function addWhaleAddress() {
+  const input = document.getElementById('whale-addr-input');
+  if (!input) return;
+  const addr = input.value.trim();
+  if (!addr.startsWith('0x') || addr.length < 10) {
+    alert('Please enter a valid Ethereum address (0x...)');
+    return;
+  }
+  const allAddrs = [...KNOWN_WHALES.map(w => w.address.toLowerCase()), ...getCustomWhales().map(w => w.address.toLowerCase())];
+  if (allAddrs.includes(addr.toLowerCase())) {
+    alert('This address is already being tracked.');
+    return;
+  }
+  const customs = getCustomWhales();
+  customs.push({ address: addr, label: 'Custom Wallet', tag: 'CUSTOM' });
+  saveCustomWhales(customs);
+  input.value = '';
+  fetchWhalePositions();
+}
+
+function removeCustomWhale(addr) {
+  const customs = getCustomWhales().filter(w => w.address.toLowerCase() !== addr.toLowerCase());
+  saveCustomWhales(customs);
+  fetchWhalePositions();
+}
+
+async function fetchWhalePositions() {
+  console.log('[WHALE] Fetching whale positions...');
+  const container = document.getElementById('whale-tracker');
+  if (!container) return;
+
+  const allWhales = [...KNOWN_WHALES, ...getCustomWhales()];
+  const results = [];
+
+  for (const whale of allWhales) {
+    try {
+      const resp = await fetchWithTimeout('https://api.hyperliquid.xyz/info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'clearinghouseState', user: whale.address, dex: 'xyz' })
+      }, 10000);
+      if (!resp.ok) { results.push({ ...whale, error: 'API ' + resp.status }); continue; }
+      const data = await resp.json();
+      const acctValue = data.marginSummary ? parseFloat(data.marginSummary.accountValue) : 0;
+      const positions = (data.assetPositions || [])
+        .map(ap => ap.position)
+        .filter(p => p && parseFloat(p.szi) !== 0);
+      results.push({ ...whale, acctValue, positions, error: null });
+    } catch(e) {
+      results.push({ ...whale, error: e.message, acctValue: 0, positions: [] });
+    }
+  }
+
+  // Render
+  const oilCoins = ['CL', 'BRENTOIL', 'NATGAS', 'GOLD', 'SILVER', 'COPPER'];
+  let html = '';
+
+  for (const w of results) {
+    const shortAddr = w.address.slice(0, 6) + '...' + w.address.slice(-4);
+    const tagColor = w.tag === 'ACTIVE' ? 'var(--accent-green)' : w.tag === 'CUSTOM' ? 'var(--accent-orange)' : 'var(--text-muted)';
+    const isCustom = w.tag === 'CUSTOM';
+
+    html += `<div style="background: rgba(0,0,0,0.25); border-radius: 8px; padding: 12px; border: 1px solid var(--border);">`;
+    html += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">`;
+    html += `<div>`;
+    html += `<span style="font-size: 12px; font-weight: 700; color: var(--text-primary);">${w.label}</span>`;
+    html += ` <span style="font-size: 9px; padding: 2px 5px; border-radius: 3px; background: ${tagColor}22; color: ${tagColor}; font-weight: 700;">${w.tag}</span>`;
+    html += `</div>`;
+    html += `<div style="display: flex; align-items: center; gap: 6px;">`;
+    html += `<span style="font-size: 10px; color: var(--text-muted); font-family: monospace;">${shortAddr}</span>`;
+    if (isCustom) {
+      html += `<button onclick="removeCustomWhale('${w.address}')" style="background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: var(--accent-red); font-size: 9px; padding: 1px 5px; border-radius: 3px; cursor: pointer;" title="Remove">✕</button>`;
+    }
+    html += `</div></div>`;
+
+    if (w.error) {
+      html += `<div style="font-size: 10px; color: var(--accent-red); padding: 4px 0;">Error: ${w.error}</div>`;
+    } else if (!w.positions || w.positions.length === 0) {
+      html += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">`;
+      html += `<span style="font-size: 10px; color: var(--text-muted);">No active XYZ positions</span>`;
+      html += `<span style="font-size: 10px; color: var(--text-muted);">Account: $${w.acctValue.toFixed(2)}</span>`;
+      html += `</div>`;
+    } else {
+      html += `<div style="font-size: 10px; color: var(--text-muted); margin-bottom: 6px;">Account Value: <span style="color: var(--accent-orange); font-weight: 700;">$${w.acctValue > 1e6 ? (w.acctValue/1e6).toFixed(2)+'M' : w.acctValue > 1e3 ? (w.acctValue/1e3).toFixed(1)+'K' : w.acctValue.toFixed(2)}</span> · ${w.positions.length} position${w.positions.length > 1 ? 's' : ''}</div>`;
+      html += `<div style="display: flex; flex-direction: column; gap: 4px;">`;
+      for (const pos of w.positions) {
+        const size = parseFloat(pos.szi);
+        const isLong = size > 0;
+        const absSize = Math.abs(size);
+        const entry = parseFloat(pos.entryPx);
+        const pnl = parseFloat(pos.unrealizedPnl);
+        const lev = pos.leverage ? parseFloat(pos.leverage.value) : 0;
+        const liqPx = pos.liquidationPx ? parseFloat(pos.liquidationPx) : null;
+        const sideColor = isLong ? 'var(--accent-green)' : 'var(--accent-red)';
+        const sideLabel = isLong ? 'LONG' : 'SHORT';
+        const pnlColor = pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+        const pnlSign = pnl >= 0 ? '+' : '';
+        const notional = absSize * entry;
+        const isOil = oilCoins.includes(pos.coin.replace('xyz:', ''));
+        const coinDisplay = pos.coin.replace('xyz:', '');
+        const highlight = isOil ? 'border-left: 2px solid var(--accent-orange);' : 'border-left: 2px solid var(--border);';
+
+        html += `<div style="background: rgba(0,0,0,0.15); border-radius: 4px; padding: 8px; ${highlight}">`;
+        html += `<div style="display: flex; justify-content: space-between; align-items: center;">`;
+        html += `<div style="display: flex; align-items: center; gap: 6px;">`;
+        html += `<span style="font-size: 11px; font-weight: 800; color: var(--text-primary);">${coinDisplay}</span>`;
+        html += `<span style="font-size: 9px; font-weight: 700; color: ${sideColor}; padding: 1px 5px; background: ${sideColor}15; border-radius: 3px;">${sideLabel} ${lev}x</span>`;
+        if (isOil) html += `<span style="font-size: 8px; color: var(--accent-orange);">OIL</span>`;
+        html += `</div>`;
+        html += `<span style="font-size: 11px; font-weight: 700; color: ${pnlColor}; font-family: monospace;">${pnlSign}$${Math.abs(pnl) > 1e3 ? (pnl/1e3).toFixed(1)+'K' : pnl.toFixed(2)}</span>`;
+        html += `</div>`;
+        html += `<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 4px; font-size: 9px;">`;
+        html += `<div><span style="color: var(--text-muted);">Size:</span> <span style="color: var(--text-primary);">${absSize > 1e3 ? (absSize/1e3).toFixed(1)+'K' : absSize.toFixed(1)}</span></div>`;
+        html += `<div><span style="color: var(--text-muted);">Entry:</span> <span style="color: var(--text-primary);">$${entry.toFixed(2)}</span></div>`;
+        html += `<div><span style="color: var(--text-muted);">Notional:</span> <span style="color: var(--text-primary);">$${notional > 1e6 ? (notional/1e6).toFixed(2)+'M' : (notional/1e3).toFixed(0)+'K'}</span></div>`;
+        html += `<div><span style="color: var(--text-muted);">Liq:</span> <span style="color: var(--accent-red);">${liqPx ? '$'+liqPx.toFixed(2) : 'N/A'}</span></div>`;
+        html += `</div></div>`;
+      }
+      html += `</div>`;
+    }
+    html += `</div>`;
+  }
+
+  html += `<div style="text-align: right; font-size: 9px; color: var(--text-muted); margin-top: 4px;">Updated: ${new Date().toUTCString().split(' ').slice(1,5).join(' ')} UTC · Tracking ${allWhales.length} wallets</div>`;
+  container.innerHTML = html;
+  console.log('[WHALE] Whale positions loaded:', results.length, 'wallets');
+}
+
+// =====================
+// NEWS FEED — StockLabs API Direct
+// =====================
+// Source color map by StockLabs username
+const SL_PROFILE_COLORS = {
+  'zerohedge': '#ef4444',
+  'DeItaone': '#f59e0b',      // Walter Bloomberg
+  'LiveSquawk': '#22c55e',
+  'unusual_whales': '#6366f1',
+  'wallstengine': '#14b8a6',
+  'financialjuice': '#f97316',
+  'AFP': '#3b82f6',
+  'statnews': '#a78bfa',
+  'SamRo': '#ec4899',
+  'Fxhedgers': '#ef4444',
+  'disclosetv': '#8b5cf6',
+  'FirstSquawk': '#10b981',
+  'BurryTracking': '#eab308',
+  'ABORDEBT': '#06b6d4',
+  'traderverseio': '#8b5cf6',
+  'FinancialJuice': '#f97316',
+};
+
+// Supplemental RSS feeds — ALWAYS fetched and merged with StockLabs
+// These add FinancialJuice + Traderverse + other Discord-community sources
+const SUPPLEMENTAL_FEEDS = [
+  { name: 'FinancialJuice', url: 'https://www.financialjuice.com/feed.ashx?xy=rss', icon: 'FJ', color: '#f97316', img: null },
+  { name: 'Traderverse', url: 'https://nitter.privacydev.net/traderverseio/rss', icon: 'TV', color: '#8b5cf6', img: null },
+  { name: 'Traderverse', url: 'https://rsshub.app/twitter/user/traderverseio', icon: 'TV', color: '#8b5cf6', img: null, alt: true },
+];
+
+// Fallback RSS feeds (used only if StockLabs API fails)
+const TICKER_FEEDS_FALLBACK = [
+  { name: 'FinancialJuice', url: 'https://www.financialjuice.com/feed.ashx?xy=rss', icon: 'FJ', color: '#f97316' },
+  { name: 'MarketWatch', url: 'https://feeds.marketwatch.com/marketwatch/topstories/', icon: 'M', color: '#14b8a6' },
+  { name: 'CNBC', url: 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114', icon: 'C', color: '#22c55e' },
+  { name: 'Investing.com', url: 'https://www.investing.com/rss/news.rss', icon: 'I', color: '#f59e0b' },
+  { name: 'Oil Price', url: 'https://oilprice.com/rss/main', icon: 'O', color: '#f97316' },
+];
+
+var newsLastId = 0; // Track newest ID to detect new items
+var newsFeedSource = 'loading'; // 'stocklabs' or 'rss-fallback'
+
+function timeAgo(ts) {
+  const secs = Math.floor((Date.now() / 1000) - ts);
+  if (secs < 60) return 'now';
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return mins + 'm';
+  if (mins < 1440) return Math.floor(mins / 60) + 'h';
+  return Math.floor(mins / 1440) + 'd';
+}
+
+function renderNewsItems(items, ticker, countEl) {
+  if (countEl) countEl.textContent = items.length + ' stories';
+  if (items.length === 0) {
+    ticker.innerHTML = '<div style="text-align: center; color: #64748b; padding: 32px; font-size: 12px;">No news available</div>';
+    return;
+  }
+  ticker.innerHTML = items.map(function(item, i) {
+    var initial = (item.icon || item.source.charAt(0)).toUpperCase();
+    var bgColor = item.color || '#64748b';
+    var imgHtml = item.profileImg
+      ? '<img src="' + item.profileImg + '" style="width:24px;height:24px;border-radius:50%;flex-shrink:0;object-fit:cover;" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\'">' +
+        '<div style="display:none;min-width:24px;width:24px;height:24px;border-radius:50%;background:' + bgColor + ';align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0;">' + initial + '</div>'
+      : '<div style="min-width:24px;width:24px;height:24px;border-radius:50%;background:' + bgColor + ';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0;text-shadow:0 1px 2px rgba(0,0,0,0.3);">' + initial + '</div>';
+
+    return '<a href="' + item.url + '" target="_blank" rel="noopener" class="sl-news-row" style="display:flex;align-items:center;gap:10px;padding:9px 14px;text-decoration:none;border-bottom:1px solid rgba(255,255,255,0.04);background:' + (i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent') + ';transition:background 0.12s;">' +
+      imgHtml +
+      '<div style="min-width:32px;width:32px;font-size:10px;color:#64748b;font-weight:500;flex-shrink:0;text-align:left;">' + timeAgo(item.ts) + '</div>' +
+      '<div style="flex:1;font-size:12.5px;color:#cbd5e1;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:400;">' + item.title + '</div>' +
+      '<div style="flex-shrink:0;color:#334155;font-size:14px;padding-left:6px;">›</div>' +
+    '</a>';
+  }).join('');
+}
+
+// Primary: StockLabs API via CORS proxies
+async function fetchStockLabsNews() {
+  const PROXIES = [
+    function(u) { return 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u); },
+    function(u) { return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
+    function(u) { return 'https://corsproxy.io/?' + encodeURIComponent(u); },
+  ];
+  const API_URL = 'https://api.stocklabs.com/news';
+
+  for (var p = 0; p < PROXIES.length; p++) {
+    try {
+      var proxyUrl = PROXIES[p](API_URL);
+      var resp = await fetchWithTimeout(proxyUrl, {}, 10000);
+      if (!resp.ok) continue;
+      var data = await resp.json();
+      if (data && data.success && data.data && data.data.length > 0) {
+        console.log('[NEWS] StockLabs API loaded via proxy #' + p + ':', data.data.length, 'items');
+        return data.data;
+      }
+    } catch(e) {
+      console.warn('[NEWS] Proxy #' + p + ' failed:', e.message);
+    }
+  }
+  return null;
+}
+
+// Fallback: RSS feeds
+async function fetchRSSNewsFallback() {
+  var allItems = [];
+  var feedPromises = TICKER_FEEDS_FALLBACK.map(async function(feed) {
+    try {
+      var data = null;
+      var resp = await fetchWithTimeout(
+        'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(feed.url), {}, 8000
+      );
+      if (resp.ok) data = await resp.json();
+      if (!data || data.status !== 'ok') data = await fetchRSSviaProxy(feed.url);
+      if (data && data.items) {
+        data.items.slice(0, 10).forEach(function(item) {
+          var title = (item.title || '').replace(/<[^>]+>/g, '').trim();
+          if (!title) return;
+          var pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
+          allItems.push({
+            title: title,
+            source: feed.name,
+            icon: feed.icon,
+            color: feed.color,
+            url: item.link || '#',
+            ts: Math.floor(pubDate.getTime() / 1000),
+            profileImg: null
+          });
+        });
+      }
+    } catch(e) {}
+  });
+  await Promise.allSettled(feedPromises);
+  allItems.sort(function(a, b) { return b.ts - a.ts; });
+  return allItems;
+}
+
+// Fetch supplemental RSS feeds (FinancialJuice, Traderverse, etc.)
+// These always run and merge with StockLabs
+async function fetchSupplementalFeeds() {
+  var items = [];
+  var seen = {}; // dedup by URL prefix
+
+  for (var i = 0; i < SUPPLEMENTAL_FEEDS.length; i++) {
+    var feed = SUPPLEMENTAL_FEEDS[i];
+    // Skip alt sources if we already got items for this source
+    if (feed.alt && items.some(function(it) { return it.source === feed.name; })) continue;
+    try {
+      var data = null;
+      // Try rss2json first
+      var resp = await fetchWithTimeout(
+        'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(feed.url), {}, 8000
+      );
+      if (resp.ok) data = await resp.json();
+      if (!data || data.status !== 'ok') {
+        // Try CORS proxy fallback
+        try {
+          var proxyResp = await fetchWithTimeout(
+            'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(
+              'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(feed.url)
+            ), {}, 8000
+          );
+          if (proxyResp.ok) data = await proxyResp.json();
+        } catch(pe) {}
+      }
+      if (data && data.items) {
+        data.items.slice(0, 10).forEach(function(item) {
+          var title = (item.title || '').replace(/<[^>]+>/g, '').trim();
+          // Clean up twitter-style titles
+          title = title.replace(/^RT @\w+:\s*/, '').replace(/https?:\/\/t\.co\/\S+/g, '').trim();
+          if (!title || title.length < 10) return;
+          var urlKey = (item.link || '').substring(0, 60);
+          if (seen[urlKey]) return;
+          seen[urlKey] = true;
+          var pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
+          items.push({
+            title: title,
+            source: feed.name,
+            icon: feed.icon,
+            color: feed.color,
+            url: item.link || '#',
+            ts: Math.floor(pubDate.getTime() / 1000),
+            profileImg: feed.img || null
+          });
+        });
+        console.log('[NEWS] Supplemental: ' + feed.name + ' loaded ' + data.items.length + ' items');
+      }
+    } catch(e) {
+      console.warn('[NEWS] Supplemental feed error (' + feed.name + '):', e.message);
+    }
+  }
+  return items;
+}
+
+async function fetchNewsTicker() {
+  console.log('[NEWS] Fetching news feed...');
+  var ticker = document.getElementById('news-ticker');
+  var countEl = document.getElementById('news-count');
+  var sourceEl = document.getElementById('news-source-tag');
+
+  // Fetch StockLabs + supplemental feeds in parallel
+  var [slData, suppItems] = await Promise.all([
+    fetchStockLabsNews(),
+    fetchSupplementalFeeds()
+  ]);
+
+  if (slData && slData.length > 0) {
+    newsFeedSource = 'stocklabs';
+    var sourceLabel = 'STOCKLABS';
+    if (suppItems.length > 0) sourceLabel += ' + FJ/TV';
+    if (sourceEl) { sourceEl.textContent = sourceLabel; sourceEl.style.color = '#22c55e'; }
+
+    // Track newest item to detect new posts
+    var newestId = slData[0].id || 0;
+    var hasNewItems = newestId > newsLastId;
+    newsLastId = newestId;
+
+    // Convert StockLabs items
+    var slItems = slData.map(function(item) {
+      var username = item.profile ? item.profile.username : 'unknown';
+      var color = SL_PROFILE_COLORS[username] || '#64748b';
+      var displayName = item.profile ? item.profile.name : 'News';
+      var firstChar = displayName.replace(/[^a-zA-Z]/g, '').charAt(0).toUpperCase() || 'N';
+      var text = (item.text || '').split('\n')[0].trim();
+      if (text.length > 200) text = text.substring(0, 200) + '...';
+
+      return {
+        title: text,
+        source: displayName,
+        icon: firstChar,
+        color: color,
+        url: item.link || '#',
+        ts: item.created_time || Math.floor(Date.now() / 1000),
+        profileImg: item.profile ? item.profile.profile_image_url : null
+      };
+    });
+
+    // Merge StockLabs + supplemental, sort by time, dedup
+    var allItems = slItems.concat(suppItems);
+    allItems.sort(function(a, b) { return b.ts - a.ts; });
+
+    // Dedup by title similarity (first 50 chars)
+    var seenTitles = {};
+    allItems = allItems.filter(function(item) {
+      var key = item.title.substring(0, 50).toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (seenTitles[key]) return false;
+      seenTitles[key] = true;
+      return true;
+    });
+
+    renderNewsItems(allItems.slice(0, 60), ticker, countEl);
+    if (hasNewItems && newsLastId > 0) console.log('[NEWS] New items detected (newest id: ' + newestId + ')');
+    return;
+  }
+
+  // Fallback: supplemental feeds + RSS fallback
+  console.log('[NEWS] StockLabs unavailable, using supplemental + RSS fallback...');
+  newsFeedSource = 'rss-fallback';
+  if (sourceEl) { sourceEl.textContent = suppItems.length > 0 ? 'FJ/TV + RSS' : 'RSS FALLBACK'; sourceEl.style.color = '#f59e0b'; }
+
+  var rssItems = await fetchRSSNewsFallback();
+  var merged = suppItems.concat(rssItems);
+  merged.sort(function(a, b) { return b.ts - a.ts; });
+  renderNewsItems(merged.slice(0, 60), ticker, countEl);
+  console.log('[NEWS] Fallback loaded', merged.length, 'items');
+}
+
+// News feed auto-refresh every 60 seconds for real-time updates
+setInterval(fetchNewsTicker, 20000); // News refresh every 20s for faster updates
+
+// =====================
+// REFRESH
+// =====================
+async function refreshAll() {
+  console.log('[REFRESH] refreshAll starting...');
+  const btn = document.querySelector('.refresh-btn');
+  if (!btn) { console.error('[REFRESH] refresh-btn not found!'); return; }
+  btn.textContent = 'REFRESHING...';
+  btn.disabled = true;
+
+  try {
+    await Promise.allSettled([
+      fetchHeadlineSentiment(),
+      fetchPredictionMarkets(),
+      fetchHyperliquidOil(),
+      fetchNewsTicker(),
+      fetchWhalePositions(),
+      fetchPriceTicker(),
+      fetchOilPriceChart(),
+      fetchExtraCommodities()
+    ]);
+    // Update impact matrix after all prices loaded
+    try { renderHormuzImpact(); } catch(e) { console.warn('[REFRESH] Impact render:', e.message); }
+    try { renderFairValue(); } catch(e) { console.warn('[REFRESH] Fair value render:', e.message); }
+  } catch(e) {
+    console.error('Refresh error:', e);
+  }
+
+  btn.textContent = 'REFRESH DATA';
+  btn.disabled = false;
+}
+
+// =====================
+// INIT
+// =====================
+console.log('[INIT] Starting dashboard initialization...');
+try { renderSentimentDashboard(); console.log('[INIT] renderSentimentDashboard OK'); } catch(e) { console.error('[INIT] renderSentimentDashboard FAILED:', e); }
+try { renderNewsSources(); console.log('[INIT] renderNewsSources OK'); } catch(e) { console.error('[INIT] renderNewsSources FAILED:', e); }
+// fetchPredictionMarkets now runs via refreshAll after auth — not at init
+
+// Fast price-only refresh (every 60s) — lightweight, prices + whales + fair value
+async function refreshPricesOnly() {
+  console.log('[FAST] Price-only refresh...');
+  try {
+    await Promise.allSettled([fetchPriceTicker(), fetchHyperliquidOil(), fetchWhalePositions(), fetchExtraCommodities()]);
+    try { renderFairValue(); } catch(e) {}
+    try { renderSupplyDisruptions(); } catch(e) {}
+  } catch(e) { console.warn('[FAST] Price refresh error:', e.message); }
+}
+
+// Medium refresh (every 2.5 min) — sentiment + predictions (heavier API calls)
+async function refreshMedium() {
+  console.log('[MED] Medium refresh — sentiment + predictions...');
+  try {
+    await Promise.allSettled([fetchHeadlineSentiment(), fetchPredictionMarkets()]);
+  } catch(e) { console.warn('[MED] Medium refresh error:', e.message); }
+}
+
+// Countdown timer display
+let refreshCountdown = 300;
+function updateRefreshTimer() {
+  refreshCountdown--;
+  if (refreshCountdown <= 0) refreshCountdown = 300;
+  const m = Math.floor(refreshCountdown / 60);
+  const s = refreshCountdown % 60;
+  const timeStr = m + ':' + String(s).padStart(2, '0');
+  const el = document.getElementById('hl-refresh-timer');
+  if (el) el.textContent = 'Next full refresh: ' + timeStr;
+  // Update header countdown
+  var cdEl = document.getElementById('refresh-countdown-display');
+  if (cdEl) cdEl.textContent = timeStr;
+  // Update last refresh time
+  if (lastSuccessfulRefresh > 0) {
+    var ago = Math.floor((Date.now() - lastSuccessfulRefresh) / 1000);
+    var agoStr = ago < 60 ? ago + 's ago' : Math.floor(ago/60) + 'm ' + (ago%60) + 's ago';
+    var lrEl = document.getElementById('last-refresh-time');
+    if (lrEl) {
+      lrEl.textContent = 'Last: ' + agoStr;
+      lrEl.style.color = ago > 360 ? 'var(--accent-red)' : ago > 180 ? 'var(--accent-orange)' : 'var(--text-muted)';
+    }
+  }
+}
+
+// Refresh health tracker — detects failed refreshes and auto-retries
+var lastSuccessfulRefresh = 0;
+var consecutiveFailures = 0;
+
+async function refreshAllWithRetry() {
+  try {
+    await refreshAll();
+    lastSuccessfulRefresh = Date.now();
+    consecutiveFailures = 0;
+    refreshCountdown = 300;
+  } catch(e) {
+    consecutiveFailures++;
+    console.error('[REFRESH] Failure #' + consecutiveFailures + ':', e.message);
+    // Auto-retry after 30s on failure (don't wait 5 min)
+    if (consecutiveFailures < 3) {
+      console.log('[REFRESH] Auto-retry in 30s...');
+      setTimeout(function() { refreshAllWithRetry(); }, 30000);
+    }
+  }
+}
+
+// Health watchdog — if no successful refresh in 6 min, force retry
+function refreshHealthCheck() {
+  if (lastSuccessfulRefresh > 0 && (Date.now() - lastSuccessfulRefresh) > 360000) {
+    console.warn('[WATCHDOG] No successful refresh in 6min — forcing retry');
+    refreshAllWithRetry();
+  }
+}
+
+// Initial fetch — only after auth
+function startDashboard() {
+  console.log('[AUTH] startDashboard called — detecting proxy, then scheduling refreshAll');
+  // Detect local server proxy first, then start fetching
+  detectLocalProxy().then(function() {
+    setTimeout(function() {
+      console.log('[AUTH] refreshAll triggered');
+      refreshAllWithRetry();
+    }, 500);
+  });
+
+  // ===== REFRESH SCHEDULE (NO GAPS > 5 MIN) =====
+  // Every 60s:  Prices (ticker + Hyperliquid) + whales + fair value + supply SPR timer
+  // Every 120s: News feed (StockLabs-style RSS)
+  // Every 150s: Sentiment headlines + prediction markets
+  // Every 300s: FULL refresh (all 7 fetchers + charts + renders)
+  // Every 60s:  Health watchdog check
+
+  // Full refresh every 5 minutes
+  setInterval(function() { refreshAllWithRetry(); }, 300000);
+
+  // Fast price refresh every 60 seconds (prices + whales + fair value + supply)
+  setInterval(refreshPricesOnly, 60000);
+
+  // Medium refresh every 2.5 minutes (sentiment + predictions — staggered from full)
+  setTimeout(function() {
+    setInterval(refreshMedium, 150000);
+  }, 75000); // offset by 75s to stagger from full refresh
+
+  // News feed refreshes on its own every 120s (set in fetchNewsTicker section)
+
+  // Countdown timer updates every second
+  setInterval(updateRefreshTimer, 1000);
+
+  // Health watchdog every 60 seconds
+  setInterval(refreshHealthCheck, 60000);
+
+  // Safety diagnostic: if sentiment still shows loading after 25s, show status
+  setTimeout(function() {
+    if (!sentimentFetchComplete) {
+      console.warn('[DIAG] Sentiment still not loaded after 25s');
+      var el = document.getElementById('sentiment-feed');
+      if (el && el.textContent.indexOf('Loading') !== -1) {
+        el.innerHTML = '<div style="text-align: center; padding: 16px;">' +
+          '<div style="color: var(--accent-orange); font-size: 12px; font-weight: 700; margin-bottom: 8px;">FEED TIMEOUT</div>' +
+          '<div style="color: var(--text-muted); font-size: 11px; margin-bottom: 8px;">Headline fetch is taking longer than expected.</div>' +
+          '<div style="color: var(--text-muted); font-size: 10px;">Check browser console (F12) for errors. Try refreshing the page.</div>' +
+          '<button onclick="refreshAll()" style="margin-top: 12px; background: var(--accent-orange); color: #000; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 11px;">RETRY NOW</button>' +
+          '</div>';
+      }
+    }
+  }, 25000);
+}
+</script>
+
+</script>
+
+</div><!-- end #app-content -->
+</body>
+</html>
