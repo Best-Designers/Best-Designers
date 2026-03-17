@@ -8,10 +8,11 @@ WordPress plugin for creating client SEO dashboards with live Google Analytics 4
 - Per-client long-tail public dashboard URL (`/client-dashboard/<token>/`)
 - Noindex/noarchive controls on public dashboard responses
 - Dashboard modules:
-  - Top page titles by GA4 views (property can be auto-resolved from Measurement ID or Stream ID)
+  - Top 20 page titles by GA4 views (property can be auto-resolved from Measurement ID or Stream ID)
   - 30-day and 90-day organic traffic comparisons
+  - Overall Search Console CTR % card (30-day vs previous 30-day comparison)
   - Search Console performance chart with 30-day / 3-month / 6-month filter (Clicks left, Impressions right)
-  - Top Queries table (CTR + average position)
+  - Top 20 real Search Console queries with click counts
   - New content/new pages from sitemap last-modified dates, with Search Console page-discovery fallback (last 30 days)
   - Project manager contact and SERanking report CTA for retention-focused client reporting
 

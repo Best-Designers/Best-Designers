@@ -121,6 +121,7 @@ canvas{width:100%!important;max-height:260px}
     <div class="grid">
         <?php self::comparison_card('Organic Traffic (30 Days)', $data['organic_30']); ?>
         <?php self::comparison_card('Organic Traffic (90 Days)', $data['organic_90']); ?>
+        <?php self::comparison_card('Overall CTR % (30 Days)', $data['overall_ctr_30'], '%'); ?>
     </div>
 
     <div class="card" style="margin-top:16px;">
@@ -135,35 +136,36 @@ canvas{width:100%!important;max-height:260px}
         <canvas id="scChart"></canvas>
     </div>
 
-    <div class="card table-card" style="margin-top:16px;">
-        <h3>Top Views by Page Title (Last 30 Days)</h3>
-        <table>
-            <thead><tr><th>Page Title</th><th>Views</th></tr></thead>
-            <tbody>
-            <?php foreach ($data['top_pages'] as $row) : ?>
-                <tr>
-                    <td><?php echo esc_html($row['dimension']); ?></td>
-                    <td><?php echo esc_html(number_format_i18n((int) $row['metric'])); ?></td>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
+    <div class="subgrid">
+        <div class="card table-card" style="margin-top:16px;">
+            <h3>Top Views by Page Title (Last 30 Days)</h3>
+            <table>
+                <thead><tr><th>Page Title</th><th>Views</th></tr></thead>
+                <tbody>
+                <?php foreach ($data['top_pages'] as $row) : ?>
+                    <tr>
+                        <td><?php echo esc_html($row['dimension']); ?></td>
+                        <td><?php echo esc_html(number_format_i18n((int) $row['metric'])); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
 
-    <div class="card table-card" style="margin-top:16px;">
-        <h3>Top Queries</h3>
-        <table>
-            <thead><tr><th>Query</th><th>CTR</th><th>Avg Position</th></tr></thead>
-            <tbody>
-            <?php foreach ($data['search_console_queries'] as $row) : ?>
-                <tr>
-                    <td><?php echo esc_html($row['keys'][0] ?? ''); ?></td>
-                    <td><?php echo esc_html(number_format_i18n(((float) ($row['ctr'] ?? 0)) * 100, 2)); ?>%</td>
-                    <td><?php echo esc_html(number_format_i18n((float) ($row['position'] ?? 0), 1)); ?></td>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
+        <div class="card table-card" style="margin-top:16px;">
+            <h3>Top Queries (Last 30 Days)</h3>
+            <table>
+                <thead><tr><th>Query</th><th>Clicks</th></tr></thead>
+                <tbody>
+                <?php foreach ($data['search_console_queries'] as $row) : ?>
+                    <tr>
+                        <td><?php echo esc_html($row['query'] ?? ''); ?></td>
+                        <td><?php echo esc_html(number_format_i18n((float) ($row['clicks'] ?? 0))); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <div class="card table-card" style="margin-top:16px;">
@@ -237,7 +239,7 @@ document.querySelectorAll('[data-range]').forEach(button => {
         exit;
     }
 
-    private static function comparison_card(string $title, array $data): void
+    private static function comparison_card(string $title, array $data, string $suffix = ''): void
     {
         $current = (float) ($data['current'] ?? 0);
         $previous = (float) ($data['previous'] ?? 0);
@@ -246,8 +248,8 @@ document.querySelectorAll('[data-range]').forEach(button => {
         ?>
         <div class="card">
             <h3><?php echo esc_html($title); ?></h3>
-            <div class="metric"><?php echo esc_html(number_format_i18n($current)); ?></div>
-            <p>Previous: <?php echo esc_html(number_format_i18n($previous)); ?></p>
+            <div class="metric"><?php echo esc_html(number_format_i18n($current, '%' === $suffix ? 2 : 0) . $suffix); ?></div>
+            <p>Previous: <?php echo esc_html(number_format_i18n($previous, '%' === $suffix ? 2 : 0) . $suffix); ?></p>
             <p class="<?php echo esc_attr($trend_class); ?>"><strong><?php echo esc_html(number_format_i18n($change, 1)); ?>%</strong> vs previous period</p>
         </div>
         <?php

@@ -26,6 +26,7 @@ class BD_SEO_Google
             'top_pages' => [],
             'organic_30' => [],
             'organic_90' => [],
+            'overall_ctr_30' => [],
             'search_console_timeseries' => [],
             'search_console_timeseries_ranges' => [],
             'search_console_queries' => [],
@@ -60,7 +61,7 @@ class BD_SEO_Google
             ]],
             'dimensions' => [['name' => 'pageTitle']],
             'metrics' => [['name' => 'screenPageViews']],
-            'limit' => 10,
+            'limit' => 20,
             'orderBys' => [[
                 'metric' => ['metricName' => 'screenPageViews'],
                 'desc' => true,
@@ -86,6 +87,13 @@ class BD_SEO_Google
             $result['errors'][] = $organic_90->get_error_message();
         } else {
             $result['organic_90'] = $organic_90;
+        }
+
+        $overall_ctr_30 = self::get_search_console_ctr_comparison($access_token, $site_url, 30);
+        if (is_wp_error($overall_ctr_30)) {
+            $result['errors'][] = $overall_ctr_30->get_error_message();
+        } else {
+            $result['overall_ctr_30'] = $overall_ctr_30;
         }
 
         $range_days = [
@@ -116,13 +124,28 @@ class BD_SEO_Google
             'startDate' => gmdate('Y-m-d', strtotime('-30 days')),
             'endDate' => gmdate('Y-m-d'),
             'dimensions' => ['query'],
-            'rowLimit' => 22,
+            'rowLimit' => 100,
         ]);
 
         if (is_wp_error($sc_queries)) {
             $result['errors'][] = $sc_queries->get_error_message();
         } else {
-            $result['search_console_queries'] = $sc_queries;
+            $result['search_console_queries'] = self::normalize_top_queries($sc_queries);
+        }
+
+        if (empty($result['sitemap_new_pages'])) {
+            $discovered_pages = self::search_console_query($access_token, $site_url, [
+                'startDate' => gmdate('Y-m-d', strtotime('-30 days')),
+                'endDate' => gmdate('Y-m-d'),
+                'dimensions' => ['page'],
+                'rowLimit' => 20,
+            ]);
+
+            if (is_wp_error($discovered_pages)) {
+                $result['errors'][] = $discovered_pages->get_error_message();
+            } else {
+                $result['sitemap_new_pages'] = self::normalize_sc_pages_as_content($discovered_pages);
+            }
         }
 
         if (empty($result['sitemap_new_pages'])) {
@@ -474,6 +497,81 @@ class BD_SEO_Google
         }
 
         return $output;
+    }
+
+    private static function normalize_top_queries(array $rows): array
+    {
+        $output = [];
+
+        foreach ($rows as $row) {
+            $query = trim((string) ($row['keys'][0] ?? ''));
+            $clicks = (float) ($row['clicks'] ?? 0);
+            $impressions = (float) ($row['impressions'] ?? 0);
+
+            if ('' === $query || 0.0 === $clicks || 0.0 === $impressions) {
+                continue;
+            }
+
+            $output[] = [
+                'query' => $query,
+                'clicks' => $clicks,
+            ];
+
+            if (20 === count($output)) {
+                break;
+            }
+        }
+
+        return $output;
+    }
+
+    private static function get_search_console_ctr_comparison(string $access_token, string $site_url, int $days)
+    {
+        $current = self::get_search_console_ctr_for_range($access_token, $site_url, '-' . $days . ' days', 'now');
+        $previous = self::get_search_console_ctr_for_range($access_token, $site_url, '-' . ($days * 2) . ' days', '-' . ($days + 1) . ' days');
+
+        if (is_wp_error($current)) {
+            return $current;
+        }
+
+        if (is_wp_error($previous)) {
+            return $previous;
+        }
+
+        $change = $previous > 0 ? (($current - $previous) / $previous) * 100 : 0;
+
+        return [
+            'current' => $current * 100,
+            'previous' => $previous * 100,
+            'change_percent' => $change,
+        ];
+    }
+
+    private static function get_search_console_ctr_for_range(string $access_token, string $site_url, string $start_relative, string $end_relative)
+    {
+        $rows = self::search_console_query($access_token, $site_url, [
+            'startDate' => gmdate('Y-m-d', strtotime($start_relative)),
+            'endDate' => gmdate('Y-m-d', strtotime($end_relative)),
+            'rowLimit' => 1,
+        ]);
+
+        if (is_wp_error($rows)) {
+            return $rows;
+        }
+
+        $first_row = $rows[0] ?? [];
+        if (isset($first_row['ctr'])) {
+            return (float) $first_row['ctr'];
+        }
+
+        $clicks = (float) ($first_row['clicks'] ?? 0);
+        $impressions = (float) ($first_row['impressions'] ?? 0);
+
+        if ($impressions <= 0) {
+            return 0.0;
+        }
+
+        return $clicks / $impressions;
     }
 
     private static function google_get_json(string $url, string $access_token, string $error_code, string $fallback_message)
