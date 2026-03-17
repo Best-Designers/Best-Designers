@@ -135,16 +135,33 @@ class BD_SEO_Google
 
     private static function get_organic_comparison(string $access_token, string $property_id, int $days)
     {
-        $current_start = $days . 'daysAgo';
-        $previous_start = ($days * 2) . 'daysAgo';
-        $previous_end = ($days + 1) . 'daysAgo';
+       $current = self::get_organic_sessions_for_range($access_token, $property_id, $days . 'daysAgo', 'today');
+        $previous = self::get_organic_sessions_for_range($access_token, $property_id, ($days * 2) . 'daysAgo', ($days + 1) . 'daysAgo');
 
+        if (is_wp_error($current)) {
+            return $current;
+        }
+
+        if (is_wp_error($previous)) {
+            return $previous;
+        }
+
+        $change = $previous > 0 ? (($current - $previous) / $previous) * 100 : 0;
+
+        return [
+            'current' => $current,
+            'previous' => $previous,
+            'change_percent' => $change,
+        ];
+    }
+
+    private static function get_organic_sessions_for_range(string $access_token, string $property_id, string $start_date, string $end_date)
+    {
         $rows = self::run_ga_report($access_token, $property_id, [
-            'dateRanges' => [
-                ['startDate' => $current_start, 'endDate' => 'today', 'name' => 'Current'],
-                ['startDate' => $previous_start, 'endDate' => $previous_end, 'name' => 'Previous'],
-            ],
-            'dimensions' => [['name' => 'dateRange']],
+            'dateRanges' => [[
+                'startDate' => $start_date,
+                'endDate' => $end_date,
+            ]],
             'metrics' => [['name' => 'sessions']],
             'dimensionFilter' => [
                 'filter' => [
@@ -155,14 +172,14 @@ class BD_SEO_Google
                     ],
                 ],
             ],
-            'limit' => 2,
+            'limit' => 1,
         ]);
 
         if (is_wp_error($rows)) {
             return $rows;
         }
 
-        return self::format_period_comparison(self::normalize_ga_rows($rows));
+        return (float) ($rows[0]['metricValues'][0]['value'] ?? 0);
     }
 
     private static function run_ga_report(string $access_token, string $property_id, array $body)
@@ -188,7 +205,8 @@ class BD_SEO_Google
         $data = json_decode((string) wp_remote_retrieve_body($response), true);
 
         if (200 !== $status) {
-            return new \WP_Error('bd_ga_failed', 'GA4 API error while building dashboard.');
+            $error_message = $data['error']['message'] ?? 'GA4 API error while building dashboard.';
+            return new \WP_Error('bd_ga_failed', 'GA4 API error: ' . $error_message);
         }
 
         return $data['rows'] ?? [];
@@ -205,29 +223,6 @@ class BD_SEO_Google
         }
 
         return $output;
-    }
-
-    private static function format_period_comparison(array $rows): array
-    {
-        $current = 0;
-        $previous = 0;
-
-        foreach ($rows as $row) {
-            if ('0' === (string) $row['dimension']) {
-                $current = (float) $row['metric'];
-            }
-            if ('1' === (string) $row['dimension']) {
-                $previous = (float) $row['metric'];
-            }
-        }
-
-        $change = $previous > 0 ? (($current - $previous) / $previous) * 100 : 0;
-
-        return [
-            'current' => $current,
-            'previous' => $previous,
-            'change_percent' => $change,
-        ];
     }
 
     private static function search_console_query(string $access_token, string $site_url, array $payload)
@@ -253,7 +248,8 @@ class BD_SEO_Google
         $data = json_decode((string) wp_remote_retrieve_body($response), true);
 
         if (200 !== $status) {
-            return new \WP_Error('bd_sc_failed', 'Search Console API error while building dashboard.');
+            $error_message = $data['error']['message'] ?? 'Search Console API error while building dashboard.';
+            return new \WP_Error('bd_sc_failed', 'Search Console API error: ' . $error_message);
         }
 
         return $data['rows'] ?? [];
