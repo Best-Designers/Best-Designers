@@ -3,14 +3,15 @@
 WordPress plugin for creating client SEO dashboards with live Google Analytics 4 + Search Console data.
 
 ## Features
-- Manual client profile creation in WP Admin (`SEO Dashboards > Add Client`)
+- Manual client profile creation in WP Admin (`SEO Dashboards > Add Client`) with optional Industry label
 - Per-client long-tail public dashboard URL (`/client-dashboard/<token>/`)
 - Noindex/noarchive controls on public dashboard responses
 - Dashboard modules:
-  - Top page titles by GA4 views
+  - Top page titles by GA4 views (property can be auto-resolved from Measurement ID or Stream ID)
   - 30-day and 90-day organic traffic comparisons
-  - Search Console performance chart (clicks, impressions, CTR, position)
-  - Search Console top queries table
+  - Search Console performance chart with dual axes (Clicks left, Impressions right)
+  - Top Queries table (CTR + average position)
+  - New content/new pages from sitemap last-modified dates (last 30 days)
 
 ## Install
 1. Copy plugin files to `wp-content/plugins/best-designers-seo-dashboard`.
@@ -20,9 +21,10 @@ WordPress plugin for creating client SEO dashboards with live Google Analytics 4
    - Google OAuth Client Secret
    - Google OAuth Refresh Token
 4. Create clients in **SEO Dashboards > Add Client** and set:
-   - GA4 Property ID
-   - Optional Measurement ID / Stream ID (reference)
-   - Search Console site URL (`sc-domain:example.com` or URL-prefix property)
+   - GA4 Property ID (optional if Measurement ID or Stream ID is provided)
+   - Measurement ID and/or Stream ID (used to auto-resolve property when needed)
+   - Search Console site URL (`sc-domain:example.com` or URL-prefix property; URL-prefix required for sitemap page discovery)
+   - Client Industry (optional; shown on dashboard)
 
 ## Required Google OAuth scopes
 - `https://www.googleapis.com/auth/analytics.readonly`

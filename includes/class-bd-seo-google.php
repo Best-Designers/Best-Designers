@@ -18,6 +18,8 @@ class BD_SEO_Google
 
         $settings = BD_SEO_Admin::get_settings();
         $property_id = get_post_meta($client_id, '_bd_ga_property_id', true);
+        $measurement_id = get_post_meta($client_id, '_bd_ga_measurement_id', true);
+        $stream_id = get_post_meta($client_id, '_bd_ga_stream_id', true);
         $site_url = get_post_meta($client_id, '_bd_sc_site_url', true);
 
         $result = [
@@ -26,13 +28,28 @@ class BD_SEO_Google
             'organic_90' => [],
             'search_console_timeseries' => [],
             'search_console_queries' => [],
+            'sitemap_new_pages' => [],
             'errors' => [],
         ];
+
+        $sitemap_pages = self::fetch_recent_sitemap_pages($site_url);
+        if (is_wp_error($sitemap_pages)) {
+            $result['errors'][] = $sitemap_pages->get_error_message();
+        } else {
+            $result['sitemap_new_pages'] = $sitemap_pages;
+        }
 
         $access_token = self::get_access_token($settings);
         if (is_wp_error($access_token)) {
             $result['errors'][] = $access_token->get_error_message();
             return $result;
+        }
+
+        $resolved_property_id = self::resolve_property_id($access_token, $property_id, $measurement_id, $stream_id);
+        if (is_wp_error($resolved_property_id)) {
+            $result['errors'][] = $resolved_property_id->get_error_message();
+        } else {
+            $property_id = $resolved_property_id;
         }
 
         $top_pages = self::run_ga_report($access_token, $property_id, [
@@ -87,7 +104,7 @@ class BD_SEO_Google
             'startDate' => gmdate('Y-m-d', strtotime('-30 days')),
             'endDate' => gmdate('Y-m-d'),
             'dimensions' => ['query'],
-            'rowLimit' => 12,
+            'rowLimit' => 22,
         ]);
 
         if (is_wp_error($sc_queries)) {
@@ -99,6 +116,135 @@ class BD_SEO_Google
         set_transient($cache_key, $result, HOUR_IN_SECONDS);
 
         return $result;
+    }
+
+    private static function fetch_recent_sitemap_pages(string $site_url)
+    {
+        $base_url = self::extract_base_url_from_site_url($site_url);
+        if (is_wp_error($base_url)) {
+            return $base_url;
+        }
+
+        if (! function_exists('simplexml_load_string')) {
+            return new \WP_Error('bd_sitemap_unavailable', 'Sitemap parsing is unavailable because SimpleXML is not enabled on this server.');
+        }
+
+        $primary_candidates = ['/wp-sitemap.xml', '/sitemap_index.xml', '/sitemap.xml'];
+        $sitemap_entries = [];
+
+        foreach ($primary_candidates as $path) {
+            $parsed = self::parse_sitemap_from_url($base_url . $path);
+            if (is_wp_error($parsed)) {
+                continue;
+            }
+
+            if ('urlset' === $parsed['type']) {
+                $sitemap_entries = array_merge($sitemap_entries, $parsed['urls']);
+                break;
+            }
+
+            if ('index' === $parsed['type']) {
+                foreach ($parsed['sitemaps'] as $child_sitemap_url) {
+                    $child = self::parse_sitemap_from_url($child_sitemap_url);
+                    if (is_wp_error($child) || 'urlset' !== $child['type']) {
+                        continue;
+                    }
+                    $sitemap_entries = array_merge($sitemap_entries, $child['urls']);
+                }
+
+                if (! empty($sitemap_entries)) {
+                    break;
+                }
+            }
+        }
+
+        if (empty($sitemap_entries)) {
+            return new \WP_Error('bd_sitemap_not_found', 'Could not find sitemap URLs for this client site.');
+        }
+
+        $cutoff = strtotime('-30 days');
+        $recent = [];
+
+        foreach ($sitemap_entries as $entry) {
+            $lastmod = (string) ($entry['lastmod'] ?? '');
+            $timestamp = ! empty($lastmod) ? strtotime($lastmod) : false;
+            if (false === $timestamp || $timestamp < $cutoff) {
+                continue;
+            }
+
+            $recent[] = [
+                'url' => (string) ($entry['loc'] ?? ''),
+                'lastmod' => gmdate('Y-m-d', $timestamp),
+            ];
+        }
+
+        usort($recent, static fn ($a, $b) => strcmp($b['lastmod'], $a['lastmod']));
+
+        return array_slice($recent, 0, 20);
+    }
+
+    private static function extract_base_url_from_site_url(string $site_url)
+    {
+        $site_url = trim($site_url);
+        if (empty($site_url)) {
+            return new \WP_Error('bd_missing_site_url', 'Missing Search Console site URL, needed for Search Console and sitemap checks.');
+        }
+
+        if (0 === strpos($site_url, 'sc-domain:')) {
+            return new \WP_Error('bd_sitemap_domain_property', 'Sitemap check requires a URL-prefix Search Console site URL (https://...) rather than sc-domain:.');
+        }
+
+        if (! preg_match('#^https?://#i', $site_url)) {
+            return new \WP_Error('bd_invalid_site_url', 'Sitemap check requires a valid URL-prefix site URL like https://example.com/.');
+        }
+
+        return rtrim($site_url, '/');
+    }
+
+    private static function parse_sitemap_from_url(string $url)
+    {
+        $response = wp_remote_get($url, ['timeout' => 20]);
+        if (is_wp_error($response)) {
+            return $response;
+        }
+
+        if (200 !== wp_remote_retrieve_response_code($response)) {
+            return new \WP_Error('bd_sitemap_fetch_failed', 'Failed to fetch sitemap: ' . esc_url_raw($url));
+        }
+
+        $xml = simplexml_load_string((string) wp_remote_retrieve_body($response));
+        if (! $xml) {
+            return new \WP_Error('bd_sitemap_parse_failed', 'Sitemap XML parsing failed for: ' . esc_url_raw($url));
+        }
+
+        $index_nodes = $xml->xpath('/*[local-name()="sitemapindex"]/*[local-name()="sitemap"]');
+        if (is_array($index_nodes) && ! empty($index_nodes)) {
+            $sitemaps = [];
+            foreach ($index_nodes as $node) {
+                $loc = (string) ($node->xpath('./*[local-name()="loc"]')[0] ?? '');
+                if (! empty($loc)) {
+                    $sitemaps[] = $loc;
+                }
+            }
+
+            return ['type' => 'index', 'sitemaps' => $sitemaps, 'urls' => []];
+        }
+
+        $url_nodes = $xml->xpath('/*[local-name()="urlset"]/*[local-name()="url"]');
+        if (! is_array($url_nodes) || empty($url_nodes)) {
+            return new \WP_Error('bd_sitemap_empty', 'No sitemap URL entries found in: ' . esc_url_raw($url));
+        }
+
+        $urls = [];
+        foreach ($url_nodes as $node) {
+            $loc = (string) ($node->xpath('./*[local-name()="loc"]')[0] ?? '');
+            $lastmod = (string) ($node->xpath('./*[local-name()="lastmod"]')[0] ?? '');
+            if (! empty($loc)) {
+                $urls[] = ['loc' => $loc, 'lastmod' => $lastmod];
+            }
+        }
+
+        return ['type' => 'urlset', 'sitemaps' => [], 'urls' => $urls];
     }
 
     private static function get_access_token(array $settings)
@@ -133,9 +279,73 @@ class BD_SEO_Google
         return $data['access_token'];
     }
 
+    private static function resolve_property_id(string $access_token, string $property_id, string $measurement_id, string $stream_id)
+    {
+        if (! empty($property_id)) {
+            return $property_id;
+        }
+
+        if (empty($measurement_id) && empty($stream_id)) {
+            return new \WP_Error('bd_missing_ga', 'Add a GA4 Property ID, or provide a Measurement ID / Stream ID that can be resolved to a property.');
+        }
+
+        $cache_key = 'bd_ga_property_lookup_' . md5($measurement_id . '|' . $stream_id);
+        $cached = get_transient($cache_key);
+        if (! empty($cached) && is_string($cached)) {
+            return $cached;
+        }
+
+        $property = self::lookup_property_id_by_stream($access_token, $measurement_id, $stream_id);
+        if (is_wp_error($property)) {
+            return $property;
+        }
+
+        set_transient($cache_key, $property, DAY_IN_SECONDS);
+
+        return $property;
+    }
+
+    private static function lookup_property_id_by_stream(string $access_token, string $measurement_id, string $stream_id)
+    {
+        $summaries = self::google_get_json('https://analyticsadmin.googleapis.com/v1beta/accountSummaries?pageSize=200', $access_token, 'bd_ga_admin_failed', 'Unable to list GA4 account summaries while resolving property ID.');
+
+        if (is_wp_error($summaries)) {
+            return $summaries;
+        }
+
+        $account_summaries = $summaries['accountSummaries'] ?? [];
+
+        foreach ($account_summaries as $summary) {
+            $property_summaries = $summary['propertySummaries'] ?? [];
+            foreach ($property_summaries as $property_summary) {
+                $property_name = $property_summary['property'] ?? '';
+                if (empty($property_name)) {
+                    continue;
+                }
+
+                $streams = self::google_get_json('https://analyticsadmin.googleapis.com/v1beta/' . $property_name . '/dataStreams?pageSize=200', $access_token, 'bd_ga_streams_failed', 'Unable to list GA4 data streams while resolving property ID.');
+
+                if (is_wp_error($streams)) {
+                    continue;
+                }
+
+                foreach (($streams['dataStreams'] ?? []) as $data_stream) {
+                    $found_stream_id = (string) basename((string) ($data_stream['name'] ?? ''));
+                    $found_measurement_id = (string) ($data_stream['webStreamData']['measurementId'] ?? '');
+
+                    if ((! empty($stream_id) && $stream_id === $found_stream_id) || (! empty($measurement_id) && $measurement_id === $found_measurement_id)) {
+                        return basename($property_name);
+                    }
+                }
+            }
+        }
+
+        return new \WP_Error('bd_property_not_found', 'Could not resolve GA4 Property ID from the provided Measurement ID / Stream ID. If possible, add the Property ID directly.');
+    }
+
     private static function get_organic_comparison(string $access_token, string $property_id, int $days)
     {
-       $current = self::get_organic_sessions_for_range($access_token, $property_id, $days . 'daysAgo', 'today');
+        $current = self::get_organic_sessions_for_range($access_token, $property_id, $days . 'daysAgo', 'today');
         $previous = self::get_organic_sessions_for_range($access_token, $property_id, ($days * 2) . 'daysAgo', ($days + 1) . 'daysAgo');
 
         if (is_wp_error($current)) {
@@ -223,6 +433,31 @@ class BD_SEO_Google
         }
 
         return $output;
+    }
+
+    private static function google_get_json(string $url, string $access_token, string $error_code, string $fallback_message)
+    {
+        $response = wp_remote_get($url, [
+            'timeout' => 25,
+            'headers' => [
+                'Authorization' => 'Bearer ' . $access_token,
+                'Content-Type' => 'application/json',
+            ],
+        ]);
+
+        if (is_wp_error($response)) {
+            return $response;
+        }
+
+        $status = wp_remote_retrieve_response_code($response);
+        $data = json_decode((string) wp_remote_retrieve_body($response), true);
+
+        if (200 !== $status) {
+            $error_message = $data['error']['message'] ?? $fallback_message;
+            return new \WP_Error($error_code, $error_message);
+        }
+
+        return is_array($data) ? $data : [];
     }
 
     private static function search_console_query(string $access_token, string $site_url, array $payload)

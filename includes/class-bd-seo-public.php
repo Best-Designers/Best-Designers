@@ -32,6 +32,7 @@ class BD_SEO_Public
         }
 
         $client = $clients[0];
+        $industry = get_post_meta($client->ID, '_bd_client_industry', true);
         $data = BD_SEO_Google::load_client_data($client->ID);
 
         status_header(200);
@@ -50,7 +51,7 @@ body{font-family:Inter,Arial,sans-serif;background:#f4f7fb;color:#0f172a;margin:
 .container{max-width:1100px;margin:0 auto;padding:28px 20px 48px}
 .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:12px}
 .brand{display:flex;align-items:center;gap:12px}
-.logo{width:42px;height:42px;background:#000;color:#fff;display:inline-flex;align-items:center;justify-content:center;font:900 28px/1 'Arial Black',Arial,sans-serif;border-radius:4px}
+.logo{width:46px;height:46px;background:#000;color:#fff;display:inline-flex;align-items:center;justify-content:center;font:900 34px/1 'Arial Black',Arial,sans-serif;border-radius:0}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
 .card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 8px 22px rgba(15,23,42,.08)}
 .card h3{margin:0 0 8px;font-size:15px;color:#334155;text-transform:uppercase;letter-spacing:.04em}
@@ -60,6 +61,7 @@ table{width:100%;border-collapse:collapse}.table-card th,.table-card td{padding:
 .table-card th{color:#475569;font-weight:600}
 canvas{width:100%!important;max-height:260px}
 .notice{background:#fff7ed;color:#9a3412;padding:12px 14px;border-radius:10px;margin:10px 0}
+.url{word-break:break-all}
 </style>
 </head>
 <body>
@@ -75,6 +77,13 @@ canvas{width:100%!important;max-height:260px}
     <?php foreach ($data['errors'] as $error) : ?>
         <div class="notice"><?php echo esc_html($error); ?></div>
     <?php endforeach; ?>
+
+    <?php if (! empty($industry)) : ?>
+        <div class="card" style="margin-bottom:16px;">
+            <h3>Industry</h3>
+            <div class="metric" style="font-size:22px;"><?php echo esc_html($industry); ?></div>
+        </div>
+    <?php endif; ?>
 
     <div class="grid">
         <?php self::comparison_card('Organic Traffic (30 Days)', $data['organic_30']); ?>
@@ -102,17 +111,30 @@ canvas{width:100%!important;max-height:260px}
     </div>
 
     <div class="card table-card" style="margin-top:16px;">
-        <h3>Search Console Top Queries</h3>
+        <h3>Top Queries</h3>
         <table>
-            <thead><tr><th>Query</th><th>Clicks</th><th>Impressions</th><th>CTR</th><th>Avg Position</th></tr></thead>
+            <thead><tr><th>Query</th><th>CTR</th><th>Avg Position</th></tr></thead>
             <tbody>
             <?php foreach ($data['search_console_queries'] as $row) : ?>
                 <tr>
                     <td><?php echo esc_html($row['keys'][0] ?? ''); ?></td>
-                    <td><?php echo esc_html(number_format_i18n((float) ($row['clicks'] ?? 0))); ?></td>
-                    <td><?php echo esc_html(number_format_i18n((float) ($row['impressions'] ?? 0))); ?></td>
                     <td><?php echo esc_html(number_format_i18n(((float) ($row['ctr'] ?? 0)) * 100, 2)); ?>%</td>
                     <td><?php echo esc_html(number_format_i18n((float) ($row['position'] ?? 0), 1)); ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card table-card" style="margin-top:16px;">
+        <h3>New Content / New Pages (Last 30 Days)</h3>
+        <table>
+            <thead><tr><th>URL</th><th>Last Modified</th></tr></thead>
+            <tbody>
+            <?php foreach ($data['sitemap_new_pages'] as $row) : ?>
+                <tr>
+                    <td class="url"><?php echo esc_html($row['url'] ?? ''); ?></td>
+                    <td><?php echo esc_html($row['lastmod'] ?? ''); ?></td>
                 </tr>
             <?php endforeach; ?>
             </tbody>
@@ -125,21 +147,25 @@ const scRows = <?php echo wp_json_encode($data['search_console_timeseries']); ?>
 const labels = scRows.map(r => r.keys[0]);
 const clicks = scRows.map(r => Number(r.clicks || 0));
 const impressions = scRows.map(r => Number(r.impressions || 0));
-const ctr = scRows.map(r => Number((r.ctr || 0) * 100));
-const position = scRows.map(r => Number(r.position || 0));
 
 new Chart(document.getElementById('scChart'), {
     type: 'line',
     data: {
         labels,
         datasets: [
-            {label:'Clicks', data:clicks, borderColor:'#2563eb', tension:.25},
-            {label:'Impressions', data:impressions, borderColor:'#7c3aed', tension:.25},
-            {label:'CTR %', data:ctr, borderColor:'#16a34a', tension:.25},
-            {label:'Avg Position', data:position, borderColor:'#f97316', tension:.25}
+            {label:'Clicks', data:clicks, yAxisID:'y', borderColor:'#2563eb', tension:.25, pointRadius:1},
+            {label:'Impressions', data:impressions, yAxisID:'y1', borderColor:'#7c3aed', tension:.25, pointRadius:1}
         ]
     },
-    options: {responsive:true, maintainAspectRatio:false}
+    options: {
+        responsive:true,
+        maintainAspectRatio:false,
+        interaction:{mode:'index',intersect:false},
+        scales:{
+            y:{type:'linear',position:'left',title:{display:true,text:'Clicks'}},
+            y1:{type:'linear',position:'right',title:{display:true,text:'Impressions'},grid:{drawOnChartArea:false}}
+        }
+    }
 });
 </script>
 </body>

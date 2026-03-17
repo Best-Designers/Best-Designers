@@ -82,7 +82,7 @@ class BD_SEO_Admin
                 <li>Create a Google Cloud project and enable <strong>Analytics Data API</strong> and <strong>Search Console API</strong>.</li>
                 <li>Create OAuth credentials and paste Client ID + Secret here.</li>
                 <li>Generate a refresh token with scopes: <code>https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/webmasters.readonly</code>.</li>
-                <li>For each client profile, add GA4 Property ID and Search Console site URL.</li>
+                <li>For each client profile, add GA4 Property ID (or Measurement ID / Stream ID), Search Console site URL, and optional Industry.</li>
             </ol>
         </div>
         <?php
@@ -102,6 +102,7 @@ class BD_SEO_Admin
         $ga_measurement_id = get_post_meta($post->ID, '_bd_ga_measurement_id', true);
         $ga_stream_id = get_post_meta($post->ID, '_bd_ga_stream_id', true);
         $sc_site_url = get_post_meta($post->ID, '_bd_sc_site_url', true);
+        $industry = get_post_meta($post->ID, '_bd_client_industry', true);
 
         if (empty($token)) {
             $token = wp_generate_password(28, false, false);
@@ -110,7 +111,7 @@ class BD_SEO_Admin
         echo '<p><label><strong>Public Dashboard URL</strong></label><br>';
         echo '<code>' . esc_html(home_url('/client-dashboard/' . $token . '/')) . '</code><br><em>Share only with client. This URL is set to noindex.</em></p>';
 
-        echo '<p><label for="bd_ga_property_id"><strong>GA4 Property ID</strong></label><br>';
+        echo '<p><label for="bd_ga_property_id"><strong>GA4 Property ID (optional if Stream/Measurement ID is provided)</strong></label><br>';
         echo '<input class="regular-text" type="text" name="bd_ga_property_id" id="bd_ga_property_id" value="' . esc_attr($ga_property_id) . '" placeholder="123456789"></p>';
 
         echo '<p><label for="bd_ga_measurement_id"><strong>GA4 Measurement ID (optional reference)</strong></label><br>';
@@ -121,6 +122,9 @@ class BD_SEO_Admin
 
         echo '<p><label for="bd_sc_site_url"><strong>Search Console Site URL</strong></label><br>';
         echo '<input class="large-text" type="text" name="bd_sc_site_url" id="bd_sc_site_url" value="' . esc_attr($sc_site_url) . '" placeholder="sc-domain:example.com or https://example.com/"></p>';
+
+        echo '<p><label for="bd_client_industry"><strong>Client Industry</strong></label><br>';
+        echo '<input class="regular-text" type="text" name="bd_client_industry" id="bd_client_industry" value="' . esc_attr($industry) . '" placeholder="e.g. Home Services"></p>';
 
         echo '<input type="hidden" name="bd_dashboard_token" value="' . esc_attr($token) . '">';
     }
@@ -145,6 +149,7 @@ class BD_SEO_Admin
             '_bd_ga_measurement_id' => 'bd_ga_measurement_id',
             '_bd_ga_stream_id' => 'bd_ga_stream_id',
             '_bd_sc_site_url' => 'bd_sc_site_url',
+            '_bd_client_industry' => 'bd_client_industry',
         ];
 
         foreach ($map as $meta_key => $field) {
