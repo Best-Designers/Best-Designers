@@ -27,6 +27,7 @@ class BD_SEO_Google
             'organic_30' => [],
             'organic_90' => [],
             'overall_ctr_30' => [],
+            'ai_results_30' => [],
             'search_console_timeseries' => [],
             'search_console_timeseries_ranges' => [],
             'search_console_queries' => [],
@@ -96,6 +97,13 @@ class BD_SEO_Google
             $result['overall_ctr_30'] = $overall_ctr_30;
         }
 
+        $ai_results_30 = self::get_ai_referral_comparison($access_token, $property_id, 30);
+        if (is_wp_error($ai_results_30)) {
+            $result['errors'][] = $ai_results_30->get_error_message();
+        } else {
+            $result['ai_results_30'] = $ai_results_30;
+        }
+
         $range_days = [
             '30d' => 30,
             '3m' => 90,
@@ -131,21 +139,6 @@ class BD_SEO_Google
             $result['errors'][] = $sc_queries->get_error_message();
         } else {
             $result['search_console_queries'] = self::normalize_top_queries($sc_queries);
-        }
-
-        if (empty($result['sitemap_new_pages'])) {
-            $discovered_pages = self::search_console_query($access_token, $site_url, [
-                'startDate' => gmdate('Y-m-d', strtotime('-30 days')),
-                'endDate' => gmdate('Y-m-d'),
-                'dimensions' => ['page'],
-                'rowLimit' => 20,
-            ]);
-
-            if (is_wp_error($discovered_pages)) {
-                $result['errors'][] = $discovered_pages->get_error_message();
-            } else {
-                $result['sitemap_new_pages'] = self::normalize_sc_pages_as_content($discovered_pages);
-            }
         }
 
         if (empty($result['sitemap_new_pages'])) {
@@ -572,6 +565,72 @@ class BD_SEO_Google
         }
 
         return $clicks / $impressions;
+    }
+
+    private static function get_ai_referral_comparison(string $access_token, string $property_id, int $days)
+    {
+        $current = self::get_ai_referral_sessions_for_range($access_token, $property_id, $days . 'daysAgo', 'today');
+        $previous = self::get_ai_referral_sessions_for_range($access_token, $property_id, ($days * 2) . 'daysAgo', ($days + 1) . 'daysAgo');
+
+        if (is_wp_error($current)) {
+            return $current;
+        }
+
+        if (is_wp_error($previous)) {
+            return $previous;
+        }
+
+        $change = $previous > 0 ? (($current - $previous) / $previous) * 100 : 0;
+
+        return [
+            'current' => $current,
+            'previous' => $previous,
+            'change_percent' => $change,
+        ];
+    }
+
+    private static function get_ai_referral_sessions_for_range(string $access_token, string $property_id, string $start_date, string $end_date)
+    {
+        $ai_sources = ['chatgpt', 'openai', 'perplexity', 'gemini', 'copilot', 'claude'];
+        $expressions = [];
+
+        foreach ($ai_sources as $source) {
+            $expressions[] = [
+                'filter' => [
+                    'fieldName' => 'sessionSource',
+                    'stringFilter' => [
+                        'matchType' => 'CONTAINS',
+                        'value' => $source,
+                    ],
+                ],
+            ];
+        }
+
+        $rows = self::run_ga_report($access_token, $property_id, [
+            'dateRanges' => [[
+                'startDate' => $start_date,
+                'endDate' => $end_date,
+            ]],
+            'dimensions' => [['name' => 'sessionSource']],
+            'metrics' => [['name' => 'sessions']],
+            'dimensionFilter' => [
+                'orGroup' => [
+                    'expressions' => $expressions,
+                ],
+            ],
+            'limit' => 100,
+        ]);
+
+        if (is_wp_error($rows)) {
+            return $rows;
+        }
+
+        $sessions_total = 0.0;
+        foreach ($rows as $row) {
+            $sessions_total += (float) ($row['metricValues'][0]['value'] ?? 0);
+        }
+
+        return $sessions_total;
     }
 
     private static function google_get_json(string $url, string $access_token, string $error_code, string $fallback_message)

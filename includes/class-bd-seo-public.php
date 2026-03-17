@@ -37,6 +37,10 @@ class BD_SEO_Public
         $project_manager_email = get_post_meta($client->ID, '_bd_project_manager_email', true);
         $keyword_report_url = get_post_meta($client->ID, '_bd_keyword_report_url', true);
         $data = BD_SEO_Google::load_client_data($client->ID);
+        $top_pages = is_array($data['top_pages'] ?? null) ? $data['top_pages'] : [];
+        $search_console_queries = is_array($data['search_console_queries'] ?? null) ? $data['search_console_queries'] : [];
+        $sitemap_new_pages = is_array($data['sitemap_new_pages'] ?? null) ? $data['sitemap_new_pages'] : [];
+        $search_console_timeseries_ranges = is_array($data['search_console_timeseries_ranges'] ?? null) ? $data['search_console_timeseries_ranges'] : [];
 
         status_header(200);
         nocache_headers();
@@ -119,9 +123,10 @@ canvas{width:100%!important;max-height:260px}
     </div>
 
     <div class="grid">
-        <?php self::comparison_card('Organic Traffic (30 Days)', $data['organic_30']); ?>
-        <?php self::comparison_card('Organic Traffic (90 Days)', $data['organic_90']); ?>
-        <?php self::comparison_card('Overall CTR % (30 Days)', $data['overall_ctr_30'], '%'); ?>
+        <?php self::comparison_card('Organic Traffic (30 Days)', is_array($data['organic_30'] ?? null) ? $data['organic_30'] : []); ?>
+        <?php self::comparison_card('Organic Traffic (90 Days)', is_array($data['organic_90'] ?? null) ? $data['organic_90'] : []); ?>
+        <?php self::comparison_card('Overall CTR % (30 Days)', is_array($data['overall_ctr_30'] ?? null) ? $data['overall_ctr_30'] : [], '%'); ?>
+        <?php self::comparison_card('AI Results Tracker (30 Days)', is_array($data['ai_results_30'] ?? null) ? $data['ai_results_30'] : []); ?>
     </div>
 
     <div class="card" style="margin-top:16px;">
@@ -142,7 +147,7 @@ canvas{width:100%!important;max-height:260px}
             <table>
                 <thead><tr><th>Page Title</th><th>Views</th></tr></thead>
                 <tbody>
-                <?php foreach ($data['top_pages'] as $row) : ?>
+                <?php foreach ($top_pages as $row) : ?>
                     <tr>
                         <td><?php echo esc_html($row['dimension']); ?></td>
                         <td><?php echo esc_html(number_format_i18n((int) $row['metric'])); ?></td>
@@ -157,7 +162,7 @@ canvas{width:100%!important;max-height:260px}
             <table>
                 <thead><tr><th>Query</th><th>Clicks</th></tr></thead>
                 <tbody>
-                <?php foreach ($data['search_console_queries'] as $row) : ?>
+                <?php foreach ($search_console_queries as $row) : ?>
                     <tr>
                         <td><?php echo esc_html($row['query'] ?? ''); ?></td>
                         <td><?php echo esc_html(number_format_i18n((float) ($row['clicks'] ?? 0))); ?></td>
@@ -173,7 +178,7 @@ canvas{width:100%!important;max-height:260px}
         <table>
             <thead><tr><th>URL</th><th>Last Modified / Discovery</th></tr></thead>
             <tbody>
-            <?php foreach ($data['sitemap_new_pages'] as $row) : ?>
+            <?php foreach ($sitemap_new_pages as $row) : ?>
                 <tr>
                     <td class="url"><?php echo esc_html($row['url'] ?? ''); ?></td>
                     <td><?php echo esc_html($row['lastmod'] ?? ''); ?></td>
@@ -185,7 +190,7 @@ canvas{width:100%!important;max-height:260px}
 </div>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-const scRangeData = <?php echo wp_json_encode($data['search_console_timeseries_ranges']); ?>;
+const scRangeData = <?php echo wp_json_encode($search_console_timeseries_ranges); ?>;
 
 function buildChartData(rangeKey) {
     const rows = scRangeData[rangeKey] || [];
