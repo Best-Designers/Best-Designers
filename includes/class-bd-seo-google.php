@@ -148,6 +148,21 @@ class BD_SEO_Google
             }
         }
 
+        if (empty($result['sitemap_new_pages'])) {
+            $discovered_pages = self::search_console_query($access_token, $site_url, [
+                'startDate' => gmdate('Y-m-d', strtotime('-30 days')),
+                'endDate' => gmdate('Y-m-d'),
+                'dimensions' => ['page'],
+                'rowLimit' => 20,
+            ]);
+
+            if (is_wp_error($discovered_pages)) {
+                $result['errors'][] = $discovered_pages->get_error_message();
+            } else {
+                $result['sitemap_new_pages'] = self::normalize_sc_pages_as_content($discovered_pages);
+            }
+        }
+
         set_transient($cache_key, $result, HOUR_IN_SECONDS);
 
         return $result;
