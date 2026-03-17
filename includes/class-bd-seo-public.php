@@ -36,11 +36,13 @@ class BD_SEO_Public
         $project_manager_name = get_post_meta($client->ID, '_bd_project_manager_name', true);
         $project_manager_email = get_post_meta($client->ID, '_bd_project_manager_email', true);
         $keyword_report_url = get_post_meta($client->ID, '_bd_keyword_report_url', true);
+        $client_logo_url = get_post_meta($client->ID, '_bd_client_logo_url', true);
         $data = BD_SEO_Google::load_client_data($client->ID);
         $errors = is_array($data['errors'] ?? null) ? $data['errors'] : [];
         $top_pages = is_array($data['top_pages'] ?? null) ? $data['top_pages'] : [];
         $search_console_queries = is_array($data['search_console_queries'] ?? null) ? $data['search_console_queries'] : [];
-        $sitemap_new_pages = is_array($data['sitemap_new_pages'] ?? null) ? $data['sitemap_new_pages'] : [];
+        $google_business = is_array($data['google_business'] ?? null) ? $data['google_business'] : [];
+        $google_merchant = is_array($data['google_merchant'] ?? null) ? $data['google_merchant'] : [];
         $search_console_timeseries_ranges = is_array($data['search_console_timeseries_ranges'] ?? null) ? $data['search_console_timeseries_ranges'] : [];
 
         status_header(200);
@@ -59,7 +61,8 @@ body{font-family:Inter,Arial,sans-serif;background:#f4f7fb;color:#0f172a;margin:
 .container{max-width:1100px;margin:0 auto;padding:28px 20px 48px}
 .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:12px}
 .brand{display:flex;align-items:center;gap:12px}
-.logo{width:46px;height:46px;background:#000;color:#fff;display:inline-flex;align-items:center;justify-content:center;font:900 34px/1 'Arial Black',Arial,sans-serif;border-radius:0}
+.logo{width:46px;height:46px;background:#000;color:#fff;display:inline-flex;align-items:center;justify-content:center;font:900 34px/1 'Arial Black',Arial,sans-serif;border-radius:0;overflow:hidden}
+.logo img{max-width:100%;max-height:100%;display:block}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
 .card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 8px 22px rgba(15,23,42,.08);margin-bottom:25px}
 .card h3{margin:0 0 8px;font-size:15px;color:#334155;text-transform:uppercase;letter-spacing:.04em}
@@ -76,16 +79,20 @@ canvas{width:100%!important;max-height:260px}
 .button.active{background:#2563eb;color:#fff}
 .subgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:16px}
 .stat-list{margin:0;padding-left:18px;color:#334155}
+@media print{body{background:#fff}.button,.toolbar button{display:none!important}.card{box-shadow:none;border:1px solid #dbe3ef}.container{max-width:none;padding:12px}}
 </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
         <div class="brand">
-            <span class="logo" aria-hidden="true">B</span>
+            <span class="logo" aria-hidden="true"><?php if (! empty($client_logo_url)) : ?><img src="<?php echo esc_url($client_logo_url); ?>" alt="<?php echo esc_attr(get_the_title($client)); ?> logo"><?php else : ?>B<?php endif; ?></span>
             <h1><?php echo esc_html(get_the_title($client)); ?> SEO Growth Dashboard</h1>
         </div>
-        <small>Updated <?php echo esc_html(gmdate('M j, Y g:i a')); ?> UTC</small>
+        <div>
+            <a href="#" class="button secondary" onclick="window.print();return false;">Print / Save PDF</a>
+            <small style="display:block;margin-top:8px;">Updated <?php echo esc_html(gmdate('M j, Y g:i a')); ?> UTC</small>
+        </div>
     </div>
 
     <?php foreach ($errors as $error) : ?>
@@ -145,6 +152,25 @@ canvas{width:100%!important;max-height:260px}
         <?php self::comparison_card('AI Results Tracker (30 Days)', is_array($data['ai_results_30'] ?? null) ? $data['ai_results_30'] : []); ?>
     </div>
 
+    <?php if (! empty($google_business)) : ?>
+    <div class="card" style="margin-top:16px;">
+        <h3>Google Business Performance Overview (Last 28 Days)</h3>
+        <div class="grid" style="margin-top:12px;">
+            <div><strong>Overview</strong><div class="metric" style="font-size:22px;"><?php echo esc_html(number_format_i18n((int) (($google_business['calls'] ?? 0) + ($google_business['directions'] ?? 0) + ($google_business['website_clicks'] ?? 0)))); ?></div></div>
+            <div><strong>Calls</strong><div class="metric" style="font-size:22px;"><?php echo esc_html(number_format_i18n((int) ($google_business['calls'] ?? 0))); ?></div></div>
+            <div><strong>Directions</strong><div class="metric" style="font-size:22px;"><?php echo esc_html(number_format_i18n((int) ($google_business['directions'] ?? 0))); ?></div></div>
+            <div><strong>Website Clicks</strong><div class="metric" style="font-size:22px;"><?php echo esc_html(number_format_i18n((int) ($google_business['website_clicks'] ?? 0))); ?></div></div>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <?php if (! empty($google_merchant['series'])) : ?>
+    <div class="card" style="margin-top:16px;">
+        <h3><?php echo esc_html($google_merchant['title'] ?? 'Your performance on Google last 28 days'); ?></h3>
+        <canvas id="merchantChart"></canvas>
+    </div>
+    <?php endif; ?>
+
     <div class="subgrid">
         <div class="card table-card" style="margin-top:16px;">
             <h3>Top Views by Page Title (Last 30 Days)</h3>
@@ -177,20 +203,6 @@ canvas{width:100%!important;max-height:260px}
         </div>
     </div>
 
-    <div class="card table-card" style="margin-top:16px;">
-        <h3>New Content / New Pages (Last 30 Days)</h3>
-        <table>
-            <thead><tr><th>URL</th><th>Last Modified / Discovery</th></tr></thead>
-            <tbody>
-            <?php foreach ($sitemap_new_pages as $row) : ?>
-                <tr>
-                    <td class="url"><?php echo esc_html($row['url'] ?? ''); ?></td>
-                    <td><?php echo esc_html($row['lastmod'] ?? ''); ?></td>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
@@ -241,6 +253,23 @@ document.querySelectorAll('[data-range]').forEach(button => {
         scChart.update();
     });
 });
+
+
+const merchantSeries = <?php echo wp_json_encode($google_merchant['series'] ?? []); ?>;
+if (merchantSeries.length && document.getElementById('merchantChart')) {
+    new Chart(document.getElementById('merchantChart'), {
+        type: 'line',
+        data: {
+            labels: merchantSeries.map(r => r.date),
+            datasets: [
+                {label:'Clicks', data: merchantSeries.map(r => Number(r.clicks || 0)), borderColor:'#16a34a', tension:.25, pointRadius:1},
+                {label:'Impressions', data: merchantSeries.map(r => Number(r.impressions || 0)), borderColor:'#f59e0b', tension:.25, pointRadius:1}
+            ]
+        },
+        options: {responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}}
+    });
+}
+
 </script>
 </body>
 </html>
