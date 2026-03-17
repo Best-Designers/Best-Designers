@@ -21,6 +21,11 @@ class BD_SEO_Google
         $measurement_id = get_post_meta($client_id, '_bd_ga_measurement_id', true);
         $stream_id = get_post_meta($client_id, '_bd_ga_stream_id', true);
         $site_url = get_post_meta($client_id, '_bd_sc_site_url', true);
+        $gbp_location_name = get_post_meta($client_id, '_bd_gbp_location_name', true);
+        $merchant_id = get_post_meta($client_id, '_bd_merchant_id', true);
+        if (empty($merchant_id)) {
+            $merchant_id = sanitize_text_field((string) ($settings['google_merchant_id'] ?? ''));
+        }
 
         $result = [
             'top_pages' => [],
@@ -31,16 +36,10 @@ class BD_SEO_Google
             'search_console_timeseries' => [],
             'search_console_timeseries_ranges' => [],
             'search_console_queries' => [],
-            'sitemap_new_pages' => [],
+            'google_business' => [],
+            'google_merchant' => [],
             'errors' => [],
         ];
-
-        $sitemap_pages = self::fetch_recent_sitemap_pages($site_url);
-        if (is_wp_error($sitemap_pages)) {
-            $result['errors'][] = $sitemap_pages->get_error_message();
-        } else {
-            $result['sitemap_new_pages'] = $sitemap_pages;
-        }
 
         $access_token = self::get_access_token($settings);
         if (is_wp_error($access_token)) {
@@ -141,18 +140,19 @@ class BD_SEO_Google
             $result['search_console_queries'] = self::normalize_top_queries($sc_queries);
         }
 
-        if (empty($result['sitemap_new_pages'])) {
-            $discovered_pages = self::search_console_query($access_token, $site_url, [
-                'startDate' => gmdate('Y-m-d', strtotime('-30 days')),
-                'endDate' => gmdate('Y-m-d'),
-                'dimensions' => ['page'],
-                'rowLimit' => 20,
-            ]);
+        $google_business = self::get_google_business_overview($access_token, $gbp_location_name);
+        if (is_wp_error($google_business)) {
+            $result['errors'][] = $google_business->get_error_message();
+        } else {
+            $result['google_business'] = $google_business;
+        }
 
-            if (is_wp_error($discovered_pages)) {
-                $result['errors'][] = $discovered_pages->get_error_message();
+        if (! empty($merchant_id)) {
+            $google_merchant = self::get_google_merchant_performance($access_token, $merchant_id);
+            if (is_wp_error($google_merchant)) {
+                $result['errors'][] = $google_merchant->get_error_message();
             } else {
-                $result['sitemap_new_pages'] = self::normalize_sc_pages_as_content($discovered_pages);
+                $result['google_merchant'] = $google_merchant;
             }
         }
 
@@ -478,20 +478,6 @@ class BD_SEO_Google
         return $output;
     }
 
-    private static function normalize_sc_pages_as_content(array $rows): array
-    {
-        $output = [];
-
-        foreach ($rows as $row) {
-            $output[] = [
-                'url' => $row['keys'][0] ?? '',
-                'lastmod' => 'Discovered in Search Console (30d)',
-            ];
-        }
-
-        return $output;
-    }
-
     private static function normalize_top_queries(array $rows): array
     {
         $output = [];
@@ -733,6 +719,161 @@ class BD_SEO_Google
         }
 
         return false;
+    }
+
+
+    private static function get_google_business_overview(string $access_token, string $location_name)
+    {
+        $location_name = trim($location_name);
+        if (empty($location_name)) {
+            return new \WP_Error('bd_missing_gbp_location', 'Google Business Profile location is not configured for this client.');
+        }
+
+        $encoded_location = str_replace('%2F', '/', rawurlencode($location_name));
+        $api_url = 'https://businessprofileperformance.googleapis.com/v1/' . $encoded_location . ':fetchMultiDailyMetricsTimeSeries';
+        $payload = [
+            'dailyMetrics' => [
+                'WEBSITE_CLICKS',
+                'CALL_CLICKS',
+                'BUSINESS_DIRECTION_REQUESTS',
+            ],
+            'dailyRange' => [
+                'startDate' => [
+                    'year' => (int) gmdate('Y', strtotime('-27 days')),
+                    'month' => (int) gmdate('n', strtotime('-27 days')),
+                    'day' => (int) gmdate('j', strtotime('-27 days')),
+                ],
+                'endDate' => [
+                    'year' => (int) gmdate('Y'),
+                    'month' => (int) gmdate('n'),
+                    'day' => (int) gmdate('j'),
+                ],
+            ],
+        ];
+
+        $response = wp_remote_post($api_url, [
+            'timeout' => 25,
+            'headers' => [
+                'Authorization' => 'Bearer ' . $access_token,
+                'Content-Type' => 'application/json',
+            ],
+            'body' => wp_json_encode($payload),
+        ]);
+
+        if (is_wp_error($response)) {
+            return $response;
+        }
+
+        $status = wp_remote_retrieve_response_code($response);
+        $data = json_decode((string) wp_remote_retrieve_body($response), true);
+
+        if (200 !== $status) {
+            $error_message = $data['error']['message'] ?? 'Google Business Profile API error while building dashboard.';
+            return new \WP_Error('bd_gbp_failed', 'Google Business Profile API error: ' . $error_message);
+        }
+
+        $overview = [
+            'calls' => 0,
+            'directions' => 0,
+            'website_clicks' => 0,
+            'time_series' => [],
+        ];
+
+        foreach (($data['multiDailyMetricTimeSeries'] ?? []) as $metric_series) {
+            $metric = (string) ($metric_series['dailyMetric'] ?? '');
+            $points = $metric_series['dailySubEntityTypeTimeSeries'][0]['timeSeries']['datedValues'] ?? [];
+
+            foreach ($points as $point) {
+                $date = sprintf(
+                    '%04d-%02d-%02d',
+                    (int) ($point['date']['year'] ?? 0),
+                    (int) ($point['date']['month'] ?? 0),
+                    (int) ($point['date']['day'] ?? 0)
+                );
+                $value = (float) ($point['value'] ?? 0);
+
+                if (! isset($overview['time_series'][$date])) {
+                    $overview['time_series'][$date] = [
+                        'date' => $date,
+                        'calls' => 0,
+                        'directions' => 0,
+                        'website_clicks' => 0,
+                    ];
+                }
+
+                if ('CALL_CLICKS' === $metric) {
+                    $overview['calls'] += $value;
+                    $overview['time_series'][$date]['calls'] += $value;
+                } elseif ('BUSINESS_DIRECTION_REQUESTS' === $metric) {
+                    $overview['directions'] += $value;
+                    $overview['time_series'][$date]['directions'] += $value;
+                } elseif ('WEBSITE_CLICKS' === $metric) {
+                    $overview['website_clicks'] += $value;
+                    $overview['time_series'][$date]['website_clicks'] += $value;
+                }
+            }
+        }
+
+        ksort($overview['time_series']);
+        $overview['time_series'] = array_values($overview['time_series']);
+
+        return $overview;
+    }
+
+    private static function get_google_merchant_performance(string $access_token, string $merchant_id)
+    {
+        $merchant_id = trim($merchant_id);
+        if (empty($merchant_id)) {
+            return new \WP_Error('bd_missing_merchant_id', 'Google Merchant Center account ID is missing.');
+        }
+
+        $start_date = gmdate('Y-m-d', strtotime('-27 days'));
+        $end_date = gmdate('Y-m-d');
+        $url = 'https://shoppingcontent.googleapis.com/content/v2.1/' . rawurlencode($merchant_id) . '/reports/search?alt=json';
+
+        $payload = [
+            'query' => sprintf(
+                'SELECT segments.date, metrics.impressions, metrics.clicks FROM SearchPerformanceView WHERE segments.date BETWEEN "%s" AND "%s" ORDER BY segments.date',
+                $start_date,
+                $end_date
+            ),
+            'pageSize' => 250,
+        ];
+
+        $response = wp_remote_post($url, [
+            'timeout' => 25,
+            'headers' => [
+                'Authorization' => 'Bearer ' . $access_token,
+                'Content-Type' => 'application/json',
+            ],
+            'body' => wp_json_encode($payload),
+        ]);
+
+        if (is_wp_error($response)) {
+            return $response;
+        }
+
+        $status = wp_remote_retrieve_response_code($response);
+        $data = json_decode((string) wp_remote_retrieve_body($response), true);
+
+        if (200 !== $status) {
+            $error_message = $data['error']['message'] ?? 'Merchant Center reporting API error while building dashboard.';
+            return new \WP_Error('bd_merchant_failed', 'Google Merchant API error: ' . $error_message);
+        }
+
+        $series = [];
+        foreach (($data['results'] ?? []) as $row) {
+            $series[] = [
+                'date' => (string) ($row['segments']['date'] ?? ''),
+                'impressions' => (float) ($row['metrics']['impressions'] ?? 0),
+                'clicks' => (float) ($row['metrics']['clicks'] ?? 0),
+            ];
+        }
+
+        return [
+            'title' => 'Your performance on Google last 28 days',
+            'series' => $series,
+        ];
     }
 
     private static function google_get_json(string $url, string $access_token, string $error_code, string $fallback_message)

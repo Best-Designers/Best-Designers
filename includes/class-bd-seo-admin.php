@@ -14,8 +14,40 @@ class BD_SEO_Admin
         add_action('admin_init', [__CLASS__, 'register_settings']);
         add_action('add_meta_boxes', [__CLASS__, 'register_meta_boxes']);
         add_action('save_post_bd_seo_client', [__CLASS__, 'save_client_meta']);
+        add_action('admin_enqueue_scripts', [__CLASS__, 'enqueue_admin_assets']);
         add_filter('manage_bd_seo_client_posts_columns', [__CLASS__, 'columns']);
         add_action('manage_bd_seo_client_posts_custom_column', [__CLASS__, 'column_content'], 10, 2);
+    }
+
+
+    public static function enqueue_admin_assets(string $hook_suffix): void
+    {
+        if (! in_array($hook_suffix, ['post.php', 'post-new.php'], true)) {
+            return;
+        }
+
+        $screen = get_current_screen();
+        if (! $screen || 'bd_seo_client' !== $screen->post_type) {
+            return;
+        }
+
+        wp_enqueue_media();
+        wp_register_script('bd-seo-admin-media', '', ['jquery'], '1.0.0', true);
+        wp_enqueue_script('bd-seo-admin-media');
+        $script = <<<'JS'
+jQuery(function($){
+    $('.bd-logo-upload').on('click', function(e){
+        e.preventDefault();
+        const frame = wp.media({title:'Select Client Logo', button:{text:'Use this logo'}, multiple:false});
+        frame.on('select', function(){
+            const media = frame.state().get('selection').first().toJSON();
+            $('#bd_client_logo_url').val(media.url);
+        });
+        frame.open();
+    });
+});
+JS;
+        wp_add_inline_script('bd-seo-admin-media', $script);
     }
 
     public static function register_menu(): void
@@ -42,6 +74,7 @@ class BD_SEO_Admin
             'google_client_id' => sanitize_text_field($input['google_client_id'] ?? ''),
             'google_client_secret' => sanitize_text_field($input['google_client_secret'] ?? ''),
             'google_refresh_token' => sanitize_text_field($input['google_refresh_token'] ?? ''),
+            'google_merchant_id' => sanitize_text_field($input['google_merchant_id'] ?? ''),
         ];
     }
 
@@ -70,7 +103,14 @@ class BD_SEO_Admin
                         <th scope="row"><label for="google_refresh_token">Google OAuth Refresh Token</label></th>
                         <td>
                             <input name="<?php echo esc_attr(self::OPTION_KEY); ?>[google_refresh_token]" id="google_refresh_token" class="large-text" value="<?php echo esc_attr($settings['google_refresh_token'] ?? ''); ?>">
-                            <p class="description">Token must include Google Analytics Data API and Search Console scopes.</p>
+                            <p class="description">Token must include Google Analytics Data API, Search Console, Business Profile Performance, and (if used) Merchant Center scopes.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="google_merchant_id">Default Google Merchant Center Account ID (optional)</label></th>
+                        <td>
+                            <input name="<?php echo esc_attr(self::OPTION_KEY); ?>[google_merchant_id]" id="google_merchant_id" class="regular-text" value="<?php echo esc_attr($settings['google_merchant_id'] ?? ''); ?>" placeholder="123456789">
+                            <p class="description">Optional global fallback. You can override per client in the client profile.</p>
                         </td>
                     </tr>
                 </table>
@@ -79,10 +119,12 @@ class BD_SEO_Admin
             <hr>
             <h2>Connection Checklist</h2>
             <ol>
-                <li>Create a Google Cloud project and enable <strong>Analytics Data API</strong> and <strong>Search Console API</strong>.</li>
+                <li>Create a Google Cloud project and enable <strong>Analytics Data API</strong>, <strong>Search Console API</strong>, <strong>Business Profile Performance API</strong>, and (if used) <strong>Content API for Shopping</strong>.</li>
                 <li>Create OAuth credentials and paste Client ID + Secret here.</li>
-                <li>Generate a refresh token with scopes: <code>https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/webmasters.readonly</code>.</li>
-                <li>For each client profile, add GA4 Property ID (or Measurement ID / Stream ID), Search Console site URL, and optional Industry.</li>
+                <li>Generate a refresh token with scopes: <code>https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/webmasters.readonly https://www.googleapis.com/auth/business.manage https://www.googleapis.com/auth/content</code>.</li>
+                <li>For each client profile, add GA4 Property ID (or Measurement ID / Stream ID), Search Console site URL, Google Business Profile location resource name, and optional Merchant Center Account ID.</li>
+                <li>Google Business Profile location format: <code>locations/1234567890</code> (from the GBP API or business profile URL mapping).</li>
+                <li>Merchant Center ID format: numeric account ID like <code>123456789</code>. If omitted globally and per client, merchant widgets are hidden on the dashboard.</li>
             </ol>
         </div>
         <?php
@@ -106,6 +148,9 @@ class BD_SEO_Admin
         $project_manager_name = get_post_meta($post->ID, '_bd_project_manager_name', true);
         $project_manager_email = get_post_meta($post->ID, '_bd_project_manager_email', true);
         $keyword_report_url = get_post_meta($post->ID, '_bd_keyword_report_url', true);
+        $gbp_location_name = get_post_meta($post->ID, '_bd_gbp_location_name', true);
+        $merchant_id = get_post_meta($post->ID, '_bd_merchant_id', true);
+        $client_logo_url = get_post_meta($post->ID, '_bd_client_logo_url', true);
 
         if (empty($token)) {
             $token = wp_generate_password(28, false, false);
@@ -140,6 +185,19 @@ class BD_SEO_Admin
         echo '<input class="large-text" type="url" name="bd_keyword_report_url" id="bd_keyword_report_url" value="' . esc_attr($keyword_report_url) . '" placeholder="https://...">';
         echo '<br><em>Paste each client\'s unique public SERanking report link to surface keyword progress in their dashboard.</em></p>';
 
+        echo '<p><label for="bd_gbp_location_name"><strong>Google Business Profile Location Resource Name</strong></label><br>';
+        echo '<input class="large-text" type="text" name="bd_gbp_location_name" id="bd_gbp_location_name" value="' . esc_attr($gbp_location_name) . '" placeholder="locations/1234567890">';
+        echo '<br><em>Used to show the Google Business Profile Performance overview (Overview, Calls, Directions, Website Clicks).</em></p>';
+
+        echo '<p><label for="bd_merchant_id"><strong>Google Merchant Center Account ID (optional)</strong></label><br>';
+        echo '<input class="regular-text" type="text" name="bd_merchant_id" id="bd_merchant_id" value="' . esc_attr($merchant_id) . '" placeholder="123456789">';
+        echo '<br><em>If empty, we use the default Merchant ID from SEO Dashboards settings. If none exists, the merchant section is hidden on the frontend.</em></p>';
+
+        echo '<p><label for="bd_client_logo_url"><strong>Client Logo URL</strong></label><br>';
+        echo '<input class="large-text" type="url" name="bd_client_logo_url" id="bd_client_logo_url" value="' . esc_attr($client_logo_url) . '" placeholder="https://example.com/logo.png"> ';
+        echo '<button type="button" class="button bd-logo-upload">Select from Media Library</button>';
+        echo '<br><em>Upload/select a logo via the Media Library to replace the default logo on the dashboard.</em></p>';
+
         echo '<input type="hidden" name="bd_dashboard_token" value="' . esc_attr($token) . '">';
     }
 
@@ -167,6 +225,9 @@ class BD_SEO_Admin
             '_bd_project_manager_name' => 'bd_project_manager_name',
             '_bd_project_manager_email' => 'bd_project_manager_email',
             '_bd_keyword_report_url' => 'bd_keyword_report_url',
+            '_bd_gbp_location_name' => 'bd_gbp_location_name',
+            '_bd_merchant_id' => 'bd_merchant_id',
+            '_bd_client_logo_url' => 'bd_client_logo_url',
         ];
 
         foreach ($map as $meta_key => $field) {
@@ -177,7 +238,7 @@ class BD_SEO_Admin
             $raw_value = wp_unslash($_POST[$field]);
             if ('_bd_project_manager_email' === $meta_key) {
                 $value = sanitize_email($raw_value);
-            } elseif ('_bd_keyword_report_url' === $meta_key) {
+            } elseif (in_array($meta_key, ['_bd_keyword_report_url', '_bd_client_logo_url'], true)) {
                 $value = esc_url_raw($raw_value);
             } else {
                 $value = sanitize_text_field($raw_value);

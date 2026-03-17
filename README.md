@@ -14,7 +14,10 @@ WordPress plugin for creating client SEO dashboards with live Google Analytics 4
   - AI Results Tracker card using GA4 referral-source sessions from major AI assistants (30-day vs previous 30-day comparison)
   - Search Console performance chart with 30-day / 3-month / 6-month filter (Clicks left, Impressions right)
   - Top 20 real Search Console queries with click counts
-  - New content/new pages from sitemap last-modified dates, with Search Console page-discovery fallback (last 30 days)
+  - Google Business Profile performance overview section (Overview, Calls, Directions, Website Clicks)
+  - Optional Google Merchant chart: "Your performance on Google last 28 days" (hidden when merchant account is not configured)
+  - Client-specific logo rendering in dashboard header (fallback to default B logo)
+  - Print / PDF export using browser print support
   - Project manager contact and SERanking report CTA for retention-focused client reporting
 
 ## Install
@@ -27,7 +30,10 @@ WordPress plugin for creating client SEO dashboards with live Google Analytics 4
 4. Create clients in **SEO Dashboards > Add Client** and set:
    - GA4 Property ID (optional if Measurement ID or Stream ID is provided)
    - Measurement ID and/or Stream ID (used to auto-resolve property when needed)
-   - Search Console site URL (`sc-domain:example.com` or URL-prefix property; URL-prefix required for sitemap page discovery)
+   - Search Console site URL (`sc-domain:example.com` or URL-prefix property)
+   - Google Business Profile location resource name (`locations/1234567890`)
+   - Merchant Center account ID (optional; falls back to plugin-level default Merchant ID)
+   - Client logo URL (optional; shown in place of the default logo)
    - Client Industry (optional; shown on dashboard)
    - Project Manager name + email (shown with an email button on the client dashboard)
    - SERanking public keyword report URL (shown as a professional external report CTA)
@@ -35,6 +41,8 @@ WordPress plugin for creating client SEO dashboards with live Google Analytics 4
 ## Required Google OAuth scopes
 - `https://www.googleapis.com/auth/analytics.readonly`
 - `https://www.googleapis.com/auth/webmasters.readonly`
+- `https://www.googleapis.com/auth/business.manage`
+- `https://www.googleapis.com/auth/content`
 
 ## Notes
 - Dashboard results are cached for 1 hour via transients.
