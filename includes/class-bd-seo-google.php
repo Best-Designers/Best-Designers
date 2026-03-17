@@ -501,7 +501,7 @@ class BD_SEO_Google
             $clicks = (float) ($row['clicks'] ?? 0);
             $impressions = (float) ($row['impressions'] ?? 0);
 
-            if ('' === $query || 0.0 === $clicks || 0.0 === $impressions) {
+            if ('' === $query || 0.0 === $impressions) {
                 continue;
             }
 
@@ -529,6 +529,14 @@ class BD_SEO_Google
 
         if (is_wp_error($previous)) {
             return $previous;
+        }
+
+        if (0.0 === $current && 0.0 === $previous) {
+            $fallback = self::get_search_console_ctr_from_query_rows($access_token, $site_url, $days);
+            if (! is_wp_error($fallback) && is_array($fallback)) {
+                $current = (float) ($fallback['current'] ?? 0);
+                $previous = (float) ($fallback['previous'] ?? 0);
+            }
         }
 
         $change = $previous > 0 ? (($current - $previous) / $previous) * 100 : 0;
@@ -568,6 +576,46 @@ class BD_SEO_Google
         return $clicks / $impressions;
     }
 
+    private static function get_search_console_ctr_from_query_rows(string $access_token, string $site_url, int $days)
+    {
+        $build = static function (string $start, string $end) use ($access_token, $site_url) {
+            $rows = self::search_console_query($access_token, $site_url, [
+                'startDate' => $start,
+                'endDate' => $end,
+                'dimensions' => ['query'],
+                'rowLimit' => 250,
+            ]);
+
+            if (is_wp_error($rows)) {
+                return $rows;
+            }
+
+            $clicks = 0.0;
+            $impressions = 0.0;
+            foreach ($rows as $row) {
+                $clicks += (float) ($row['clicks'] ?? 0);
+                $impressions += (float) ($row['impressions'] ?? 0);
+            }
+
+            return $impressions > 0 ? ($clicks / $impressions) : 0.0;
+        };
+
+        $current = $build(gmdate('Y-m-d', strtotime('-' . $days . ' days')), gmdate('Y-m-d'));
+        if (is_wp_error($current)) {
+            return $current;
+        }
+
+        $previous = $build(gmdate('Y-m-d', strtotime('-' . ($days * 2) . ' days')), gmdate('Y-m-d', strtotime('-' . ($days + 1) . ' days')));
+        if (is_wp_error($previous)) {
+            return $previous;
+        }
+
+        return [
+            'current' => $current,
+            'previous' => $previous,
+        ];
+    }
+
     private static function get_ai_referral_comparison(string $access_token, string $property_id, int $days)
     {
         $current = self::get_ai_referral_sessions_for_range($access_token, $property_id, $days . 'daysAgo', 'today');
@@ -592,7 +640,7 @@ class BD_SEO_Google
 
     private static function get_ai_referral_sessions_for_range(string $access_token, string $property_id, string $start_date, string $end_date)
     {
-        $rows = self::run_ga_report($access_token, $property_id, [
+        $source_rows = self::run_ga_report($access_token, $property_id, [
             'dateRanges' => [[
                 'startDate' => $start_date,
                 'endDate' => $end_date,
@@ -606,14 +654,45 @@ class BD_SEO_Google
             ]],
         ]);
 
-        if (is_wp_error($rows)) {
-            return $rows;
+        if (is_wp_error($source_rows)) {
+            return $source_rows;
         }
 
         $sessions_total = 0.0;
-        foreach ($rows as $row) {
+        foreach ($source_rows as $row) {
             $source = strtolower((string) ($row['dimensionValues'][0]['value'] ?? ''));
             if (! self::is_ai_source($source)) {
+                continue;
+            }
+
+            $sessions_total += (float) ($row['metricValues'][0]['value'] ?? 0);
+        }
+
+        if ($sessions_total > 0) {
+            return $sessions_total;
+        }
+
+        $referrer_rows = self::run_ga_report($access_token, $property_id, [
+            'dateRanges' => [[
+                'startDate' => $start_date,
+                'endDate' => $end_date,
+            ]],
+            'dimensions' => [['name' => 'fullReferrer']],
+            'metrics' => [['name' => 'sessions']],
+            'limit' => 1000,
+            'orderBys' => [[
+                'metric' => ['metricName' => 'sessions'],
+                'desc' => true,
+            ]],
+        ]);
+
+        if (is_wp_error($referrer_rows)) {
+            return 0.0;
+        }
+
+        foreach ($referrer_rows as $row) {
+            $referrer = strtolower((string) ($row['dimensionValues'][0]['value'] ?? ''));
+            if (! self::is_ai_source($referrer)) {
                 continue;
             }
 

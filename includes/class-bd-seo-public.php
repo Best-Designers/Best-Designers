@@ -61,7 +61,7 @@ body{font-family:Inter,Arial,sans-serif;background:#f4f7fb;color:#0f172a;margin:
 .brand{display:flex;align-items:center;gap:12px}
 .logo{width:46px;height:46px;background:#000;color:#fff;display:inline-flex;align-items:center;justify-content:center;font:900 34px/1 'Arial Black',Arial,sans-serif;border-radius:0}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
-.card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 8px 22px rgba(15,23,42,.08)}
+.card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 8px 22px rgba(15,23,42,.08);margin-bottom:25px}
 .card h3{margin:0 0 8px;font-size:15px;color:#334155;text-transform:uppercase;letter-spacing:.04em}
 .metric{font-size:30px;font-weight:700;margin:6px 0 0}
 .up{color:#16a34a}.down{color:#dc2626}
