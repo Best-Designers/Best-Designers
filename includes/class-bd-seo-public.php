@@ -48,9 +48,7 @@ class BD_SEO_Public
 <style>
 body{font-family:Inter,Arial,sans-serif;background:#f4f7fb;color:#0f172a;margin:0;padding:0}
 .container{max-width:1100px;margin:0 auto;padding:28px 20px 48px}
-.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:12px}
-.brand{display:flex;align-items:center;gap:12px}
-.logo{width:42px;height:42px;background:#000;color:#fff;display:inline-flex;align-items:center;justify-content:center;font:900 28px/1 'Arial Black',Arial,sans-serif;border-radius:4px}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
 .card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 8px 22px rgba(15,23,42,.08)}
 .card h3{margin:0 0 8px;font-size:15px;color:#334155;text-transform:uppercase;letter-spacing:.04em}
@@ -65,10 +63,7 @@ canvas{width:100%!important;max-height:260px}
 <body>
 <div class="container">
     <div class="header">
-        <div class="brand">
-            <span class="logo" aria-hidden="true">B</span>
-            <h1><?php echo esc_html(get_the_title($client)); ?> SEO Growth Dashboard</h1>
-        </div>
+        <h1><?php echo esc_html(get_the_title($client)); ?> SEO Growth Dashboard</h1>
         <small>Updated <?php echo esc_html(gmdate('M j, Y g:i a')); ?> UTC</small>
     </div>
 
