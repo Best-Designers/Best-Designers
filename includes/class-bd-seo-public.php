@@ -37,6 +37,7 @@ class BD_SEO_Public
         $project_manager_email = get_post_meta($client->ID, '_bd_project_manager_email', true);
         $keyword_report_url = get_post_meta($client->ID, '_bd_keyword_report_url', true);
         $data = BD_SEO_Google::load_client_data($client->ID);
+        $errors = is_array($data['errors'] ?? null) ? $data['errors'] : [];
         $top_pages = is_array($data['top_pages'] ?? null) ? $data['top_pages'] : [];
         $search_console_queries = is_array($data['search_console_queries'] ?? null) ? $data['search_console_queries'] : [];
         $sitemap_new_pages = is_array($data['sitemap_new_pages'] ?? null) ? $data['sitemap_new_pages'] : [];
@@ -87,7 +88,7 @@ canvas{width:100%!important;max-height:260px}
         <small>Updated <?php echo esc_html(gmdate('M j, Y g:i a')); ?> UTC</small>
     </div>
 
-    <?php foreach ($data['errors'] as $error) : ?>
+    <?php foreach ($errors as $error) : ?>
         <div class="notice"><?php echo esc_html($error); ?></div>
     <?php endforeach; ?>
 
@@ -125,8 +126,6 @@ canvas{width:100%!important;max-height:260px}
     <div class="grid">
         <?php self::comparison_card('Organic Traffic (30 Days)', is_array($data['organic_30'] ?? null) ? $data['organic_30'] : []); ?>
         <?php self::comparison_card('Organic Traffic (90 Days)', is_array($data['organic_90'] ?? null) ? $data['organic_90'] : []); ?>
-        <?php self::comparison_card('Overall CTR % (30 Days)', is_array($data['overall_ctr_30'] ?? null) ? $data['overall_ctr_30'] : [], '%'); ?>
-        <?php self::comparison_card('AI Results Tracker (30 Days)', is_array($data['ai_results_30'] ?? null) ? $data['ai_results_30'] : []); ?>
     </div>
 
     <div class="card" style="margin-top:16px;">
@@ -139,6 +138,11 @@ canvas{width:100%!important;max-height:260px}
             </div>
         </div>
         <canvas id="scChart"></canvas>
+    </div>
+
+    <div class="subgrid">
+        <?php self::comparison_card('Overall CTR % (30 Days)', is_array($data['overall_ctr_30'] ?? null) ? $data['overall_ctr_30'] : [], '%'); ?>
+        <?php self::comparison_card('AI Results Tracker (30 Days)', is_array($data['ai_results_30'] ?? null) ? $data['ai_results_30'] : []); ?>
     </div>
 
     <div class="subgrid">

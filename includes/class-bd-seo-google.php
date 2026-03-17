@@ -545,20 +545,21 @@ class BD_SEO_Google
         $rows = self::search_console_query($access_token, $site_url, [
             'startDate' => gmdate('Y-m-d', strtotime($start_relative)),
             'endDate' => gmdate('Y-m-d', strtotime($end_relative)),
-            'rowLimit' => 1,
+            'dimensions' => ['date'],
+            'rowLimit' => 200,
         ]);
 
         if (is_wp_error($rows)) {
             return $rows;
         }
 
-        $first_row = $rows[0] ?? [];
-        if (isset($first_row['ctr'])) {
-            return (float) $first_row['ctr'];
-        }
+        $clicks = 0.0;
+        $impressions = 0.0;
 
-        $clicks = (float) ($first_row['clicks'] ?? 0);
-        $impressions = (float) ($first_row['impressions'] ?? 0);
+        foreach ($rows as $row) {
+            $clicks += (float) ($row['clicks'] ?? 0);
+            $impressions += (float) ($row['impressions'] ?? 0);
+        }
 
         if ($impressions <= 0) {
             return 0.0;
@@ -591,21 +592,6 @@ class BD_SEO_Google
 
     private static function get_ai_referral_sessions_for_range(string $access_token, string $property_id, string $start_date, string $end_date)
     {
-        $ai_sources = ['chatgpt', 'openai', 'perplexity', 'gemini', 'copilot', 'claude'];
-        $expressions = [];
-
-        foreach ($ai_sources as $source) {
-            $expressions[] = [
-                'filter' => [
-                    'fieldName' => 'sessionSource',
-                    'stringFilter' => [
-                        'matchType' => 'CONTAINS',
-                        'value' => $source,
-                    ],
-                ],
-            ];
-        }
-
         $rows = self::run_ga_report($access_token, $property_id, [
             'dateRanges' => [[
                 'startDate' => $start_date,
@@ -613,12 +599,11 @@ class BD_SEO_Google
             ]],
             'dimensions' => [['name' => 'sessionSource']],
             'metrics' => [['name' => 'sessions']],
-            'dimensionFilter' => [
-                'orGroup' => [
-                    'expressions' => $expressions,
-                ],
-            ],
-            'limit' => 100,
+            'limit' => 500,
+            'orderBys' => [[
+                'metric' => ['metricName' => 'sessions'],
+                'desc' => true,
+            ]],
         ]);
 
         if (is_wp_error($rows)) {
@@ -627,10 +612,48 @@ class BD_SEO_Google
 
         $sessions_total = 0.0;
         foreach ($rows as $row) {
+            $source = strtolower((string) ($row['dimensionValues'][0]['value'] ?? ''));
+            if (! self::is_ai_source($source)) {
+                continue;
+            }
+
             $sessions_total += (float) ($row['metricValues'][0]['value'] ?? 0);
         }
 
         return $sessions_total;
+    }
+
+    private static function is_ai_source(string $source): bool
+    {
+        if ('' === $source) {
+            return false;
+        }
+
+        $patterns = [
+            'chatgpt',
+            'chat.openai',
+            'openai',
+            'perplexity',
+            'gemini',
+            'bard',
+            'copilot',
+            'bing chat',
+            'claude',
+            'anthropic',
+            'poe',
+            'you.com',
+            'meta.ai',
+            'mistral',
+            'phind',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (false !== strpos($source, $pattern)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static function google_get_json(string $url, string $access_token, string $error_code, string $fallback_message)
