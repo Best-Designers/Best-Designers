@@ -722,9 +722,27 @@ class BD_SEO_Google
     }
 
 
-    private static function get_google_business_overview(string $access_token, string $location_name)
+    private static function normalize_gbp_location_name(string $location_name): string
     {
         $location_name = trim($location_name);
+        if ('' === $location_name) {
+            return '';
+        }
+
+        if (0 === strpos($location_name, 'locations/')) {
+            return $location_name;
+        }
+
+        if (preg_match('/^\d+$/', $location_name)) {
+            return 'locations/' . $location_name;
+        }
+
+        return $location_name;
+    }
+
+    private static function get_google_business_overview(string $access_token, string $location_name)
+    {
+        $location_name = self::normalize_gbp_location_name($location_name);
         if (empty($location_name)) {
             return new \WP_Error('bd_missing_gbp_location', 'Google Business Profile location is not configured for this client.');
         }
@@ -833,7 +851,7 @@ class BD_SEO_Google
 
         $payload = [
             'query' => sprintf(
-                'SELECT segments.date, metrics.impressions, metrics.clicks FROM SearchPerformanceView WHERE segments.date BETWEEN "%s" AND "%s" ORDER BY segments.date',
+                'SELECT segments.date, metrics.impressions, metrics.clicks FROM search_performance_view WHERE segments.date BETWEEN "%s" AND "%s" ORDER BY segments.date',
                 $start_date,
                 $end_date
             ),
