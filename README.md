@@ -4,14 +4,17 @@ WordPress plugin for creating client SEO dashboards with live Google Analytics 4
 
 ## Features
 - Manual client profile creation in WP Admin (`SEO Dashboards > Add Client`) with optional Industry label
+- Backend fields for Project Manager name/email and client-specific SERanking public report URL
 - Per-client long-tail public dashboard URL (`/client-dashboard/<token>/`)
 - Noindex/noarchive controls on public dashboard responses
 - Dashboard modules:
-  - Top page titles by GA4 views (property can be auto-resolved from Measurement ID or Stream ID)
+  - Top 20 page titles by GA4 views (property can be auto-resolved from Measurement ID or Stream ID)
   - 30-day and 90-day organic traffic comparisons
-  - Search Console performance chart with dual axes (Clicks left, Impressions right)
-  - Top Queries table (CTR + average position)
-  - New content/new pages from sitemap last-modified dates (last 30 days)
+  - Overall Search Console CTR % card (30-day vs previous 30-day comparison)
+  - Search Console performance chart with 30-day / 3-month / 6-month filter (Clicks left, Impressions right)
+  - Top 20 real Search Console queries with click counts
+  - New content/new pages from sitemap last-modified dates, with Search Console page-discovery fallback (last 30 days)
+  - Project manager contact and SERanking report CTA for retention-focused client reporting
 
 ## Install
 1. Copy plugin files to `wp-content/plugins/best-designers-seo-dashboard`.
@@ -25,6 +28,8 @@ WordPress plugin for creating client SEO dashboards with live Google Analytics 4
    - Measurement ID and/or Stream ID (used to auto-resolve property when needed)
    - Search Console site URL (`sc-domain:example.com` or URL-prefix property; URL-prefix required for sitemap page discovery)
    - Client Industry (optional; shown on dashboard)
+   - Project Manager name + email (shown with an email button on the client dashboard)
+   - SERanking public keyword report URL (shown as a professional external report CTA)
 
 ## Required Google OAuth scopes
 - `https://www.googleapis.com/auth/analytics.readonly`

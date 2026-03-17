@@ -103,6 +103,9 @@ class BD_SEO_Admin
         $ga_stream_id = get_post_meta($post->ID, '_bd_ga_stream_id', true);
         $sc_site_url = get_post_meta($post->ID, '_bd_sc_site_url', true);
         $industry = get_post_meta($post->ID, '_bd_client_industry', true);
+        $project_manager_name = get_post_meta($post->ID, '_bd_project_manager_name', true);
+        $project_manager_email = get_post_meta($post->ID, '_bd_project_manager_email', true);
+        $keyword_report_url = get_post_meta($post->ID, '_bd_keyword_report_url', true);
 
         if (empty($token)) {
             $token = wp_generate_password(28, false, false);
@@ -125,6 +128,17 @@ class BD_SEO_Admin
 
         echo '<p><label for="bd_client_industry"><strong>Client Industry</strong></label><br>';
         echo '<input class="regular-text" type="text" name="bd_client_industry" id="bd_client_industry" value="' . esc_attr($industry) . '" placeholder="e.g. Home Services"></p>';
+
+        echo '<hr>';
+        echo '<p><label for="bd_project_manager_name"><strong>Project Manager Name</strong></label><br>';
+        echo '<input class="regular-text" type="text" name="bd_project_manager_name" id="bd_project_manager_name" value="' . esc_attr($project_manager_name) . '" placeholder="e.g. Alex Smith"></p>';
+
+        echo '<p><label for="bd_project_manager_email"><strong>Project Manager Email</strong></label><br>';
+        echo '<input class="regular-text" type="email" name="bd_project_manager_email" id="bd_project_manager_email" value="' . esc_attr($project_manager_email) . '" placeholder="e.g. alex@example.com"></p>';
+
+        echo '<p><label for="bd_keyword_report_url"><strong>SERanking Public Keyword Report URL</strong></label><br>';
+        echo '<input class="large-text" type="url" name="bd_keyword_report_url" id="bd_keyword_report_url" value="' . esc_attr($keyword_report_url) . '" placeholder="https://...">';
+        echo '<br><em>Paste each client\'s unique public SERanking report link to surface keyword progress in their dashboard.</em></p>';
 
         echo '<input type="hidden" name="bd_dashboard_token" value="' . esc_attr($token) . '">';
     }
@@ -150,13 +164,26 @@ class BD_SEO_Admin
             '_bd_ga_stream_id' => 'bd_ga_stream_id',
             '_bd_sc_site_url' => 'bd_sc_site_url',
             '_bd_client_industry' => 'bd_client_industry',
+            '_bd_project_manager_name' => 'bd_project_manager_name',
+            '_bd_project_manager_email' => 'bd_project_manager_email',
+            '_bd_keyword_report_url' => 'bd_keyword_report_url',
         ];
 
         foreach ($map as $meta_key => $field) {
             if (! isset($_POST[$field])) {
                 continue;
             }
-            update_post_meta($post_id, $meta_key, sanitize_text_field(wp_unslash($_POST[$field])));
+
+            $raw_value = wp_unslash($_POST[$field]);
+            if ('_bd_project_manager_email' === $meta_key) {
+                $value = sanitize_email($raw_value);
+            } elseif ('_bd_keyword_report_url' === $meta_key) {
+                $value = esc_url_raw($raw_value);
+            } else {
+                $value = sanitize_text_field($raw_value);
+            }
+
+            update_post_meta($post_id, $meta_key, $value);
         }
 
         delete_transient('bd_dashboard_data_' . get_post_meta($post_id, '_bd_dashboard_token', true));
