@@ -123,7 +123,7 @@ JS;
                 <li>Create OAuth credentials and paste Client ID + Secret here.</li>
                 <li>Generate a refresh token with scopes: <code>https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/webmasters.readonly https://www.googleapis.com/auth/business.manage https://www.googleapis.com/auth/content</code>.</li>
                 <li>For each client profile, add GA4 Property ID (or Measurement ID / Stream ID), Search Console site URL, Google Business Profile location resource name, and optional Merchant Center Account ID.</li>
-                <li>Google Business Profile location format: <code>locations/1234567890</code> (from the GBP API or business profile URL mapping).</li>
+                <li>Google Business Profile location can be either a numeric Business Profile ID like <code>1234567890</code> or a full resource name like <code>locations/1234567890</code>.</li>
                 <li>Merchant Center ID format: numeric account ID like <code>123456789</code>. If omitted globally and per client, merchant widgets are hidden on the dashboard.</li>
             </ol>
         </div>
@@ -185,9 +185,9 @@ JS;
         echo '<input class="large-text" type="url" name="bd_keyword_report_url" id="bd_keyword_report_url" value="' . esc_attr($keyword_report_url) . '" placeholder="https://...">';
         echo '<br><em>Paste each client\'s unique public SERanking report link to surface keyword progress in their dashboard.</em></p>';
 
-        echo '<p><label for="bd_gbp_location_name"><strong>Google Business Profile Location Resource Name</strong></label><br>';
-        echo '<input class="large-text" type="text" name="bd_gbp_location_name" id="bd_gbp_location_name" value="' . esc_attr($gbp_location_name) . '" placeholder="locations/1234567890">';
-        echo '<br><em>Used to show the Google Business Profile Performance overview (Overview, Calls, Directions, Website Clicks).</em></p>';
+        echo '<p><label for="bd_gbp_location_name"><strong>Google Business Profile Location (ID or Resource Name)</strong></label><br>';
+        echo '<input class="large-text" type="text" name="bd_gbp_location_name" id="bd_gbp_location_name" value="' . esc_attr($gbp_location_name) . '" placeholder="1234567890 or locations/1234567890">';
+        echo '<br><em>Used to show the Google Business Profile Performance overview (Overview, Calls, Directions, Website Clicks). You can paste either the numeric Business Profile ID or the full <code>locations/...</code> resource name.</em></p>';
 
         echo '<p><label for="bd_merchant_id"><strong>Google Merchant Center Account ID (optional)</strong></label><br>';
         echo '<input class="regular-text" type="text" name="bd_merchant_id" id="bd_merchant_id" value="' . esc_attr($merchant_id) . '" placeholder="123456789">';
