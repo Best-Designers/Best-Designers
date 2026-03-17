@@ -33,6 +33,9 @@ class BD_SEO_Public
 
         $client = $clients[0];
         $industry = get_post_meta($client->ID, '_bd_client_industry', true);
+        $project_manager_name = get_post_meta($client->ID, '_bd_project_manager_name', true);
+        $project_manager_email = get_post_meta($client->ID, '_bd_project_manager_email', true);
+        $keyword_report_url = get_post_meta($client->ID, '_bd_keyword_report_url', true);
         $data = BD_SEO_Google::load_client_data($client->ID);
 
         status_header(200);
@@ -62,6 +65,12 @@ table{width:100%;border-collapse:collapse}.table-card th,.table-card td{padding:
 canvas{width:100%!important;max-height:260px}
 .notice{background:#fff7ed;color:#9a3412;padding:12px 14px;border-radius:10px;margin:10px 0}
 .url{word-break:break-all}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.button{display:inline-flex;align-items:center;gap:8px;border-radius:10px;padding:10px 14px;background:#0f172a;color:#fff;text-decoration:none;font-weight:600}
+.button.secondary{background:#e2e8f0;color:#0f172a}
+.button.active{background:#2563eb;color:#fff}
+.subgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:16px}
+.stat-list{margin:0;padding-left:18px;color:#334155}
 </style>
 </head>
 <body>
@@ -85,13 +94,44 @@ canvas{width:100%!important;max-height:260px}
         </div>
     <?php endif; ?>
 
+    <div class="subgrid">
+        <div class="card">
+            <h3>Your Project Manager</h3>
+            <div class="metric" style="font-size:24px;"><?php echo esc_html(! empty($project_manager_name) ? $project_manager_name : 'Best Designers SEO Team'); ?></div>
+            <?php if (! empty($project_manager_email)) : ?>
+                <p style="margin-top:10px;"><a class="button" href="mailto:<?php echo esc_attr($project_manager_email); ?>">Email Project Manager</a></p>
+            <?php else : ?>
+                <p>Project manager email will appear here once set in the backend.</p>
+            <?php endif; ?>
+        </div>
+
+        <div class="card">
+            <h3>SEO Momentum Snapshot</h3>
+            <ul class="stat-list">
+                <li>Organic traffic trend is benchmarked across 30 and 90 day windows.</li>
+                <li>Search visibility charts track clicks and impressions over time.</li>
+                <li>Keyword opportunities and newly discovered pages are monitored weekly.</li>
+            </ul>
+            <?php if (! empty($keyword_report_url)) : ?>
+                <p style="margin-top:12px;"><a class="button secondary" href="<?php echo esc_url($keyword_report_url); ?>" target="_blank" rel="noopener">Open Live SERanking Keyword Report</a></p>
+            <?php endif; ?>
+        </div>
+    </div>
+
     <div class="grid">
         <?php self::comparison_card('Organic Traffic (30 Days)', $data['organic_30']); ?>
         <?php self::comparison_card('Organic Traffic (90 Days)', $data['organic_90']); ?>
     </div>
 
     <div class="card" style="margin-top:16px;">
-        <h3>Search Console Performance (30 Days)</h3>
+        <div class="toolbar">
+            <h3 style="margin:0;">Search Console Performance</h3>
+            <div>
+                <button class="button secondary active" type="button" data-range="30d">30 Days</button>
+                <button class="button secondary" type="button" data-range="3m">3 Months</button>
+                <button class="button secondary" type="button" data-range="6m">6 Months</button>
+            </div>
+        </div>
         <canvas id="scChart"></canvas>
     </div>
 
@@ -129,7 +169,7 @@ canvas{width:100%!important;max-height:260px}
     <div class="card table-card" style="margin-top:16px;">
         <h3>New Content / New Pages (Last 30 Days)</h3>
         <table>
-            <thead><tr><th>URL</th><th>Last Modified</th></tr></thead>
+            <thead><tr><th>URL</th><th>Last Modified / Discovery</th></tr></thead>
             <tbody>
             <?php foreach ($data['sitemap_new_pages'] as $row) : ?>
                 <tr>
@@ -143,18 +183,26 @@ canvas{width:100%!important;max-height:260px}
 </div>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-const scRows = <?php echo wp_json_encode($data['search_console_timeseries']); ?>;
-const labels = scRows.map(r => r.keys[0]);
-const clicks = scRows.map(r => Number(r.clicks || 0));
-const impressions = scRows.map(r => Number(r.impressions || 0));
+const scRangeData = <?php echo wp_json_encode($data['search_console_timeseries_ranges']); ?>;
 
-new Chart(document.getElementById('scChart'), {
+function buildChartData(rangeKey) {
+    const rows = scRangeData[rangeKey] || [];
+    return {
+        labels: rows.map(r => r.keys[0]),
+        clicks: rows.map(r => Number(r.clicks || 0)),
+        impressions: rows.map(r => Number(r.impressions || 0))
+    };
+}
+
+const initialData = buildChartData('30d');
+
+const scChart = new Chart(document.getElementById('scChart'), {
     type: 'line',
     data: {
-        labels,
+        labels: initialData.labels,
         datasets: [
-            {label:'Clicks', data:clicks, yAxisID:'y', borderColor:'#2563eb', tension:.25, pointRadius:1},
-            {label:'Impressions', data:impressions, yAxisID:'y1', borderColor:'#7c3aed', tension:.25, pointRadius:1}
+            {label:'Clicks', data:initialData.clicks, yAxisID:'y', borderColor:'#2563eb', tension:.25, pointRadius:1},
+            {label:'Impressions', data:initialData.impressions, yAxisID:'y1', borderColor:'#7c3aed', tension:.25, pointRadius:1}
         ]
     },
     options: {
@@ -166,6 +214,21 @@ new Chart(document.getElementById('scChart'), {
             y1:{type:'linear',position:'right',title:{display:true,text:'Impressions'},grid:{drawOnChartArea:false}}
         }
     }
+});
+
+document.querySelectorAll('[data-range]').forEach(button => {
+    button.addEventListener('click', () => {
+        const rangeKey = button.getAttribute('data-range');
+        const nextData = buildChartData(rangeKey);
+
+        document.querySelectorAll('[data-range]').forEach(item => item.classList.remove('active'));
+        button.classList.add('active');
+
+        scChart.data.labels = nextData.labels;
+        scChart.data.datasets[0].data = nextData.clicks;
+        scChart.data.datasets[1].data = nextData.impressions;
+        scChart.update();
+    });
 });
 </script>
 </body>
